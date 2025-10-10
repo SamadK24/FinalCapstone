@@ -1,0 +1,63 @@
+package com.aurionpro.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.aurionpro.security.CaptchaValidationFilter;
+import com.aurionpro.security.CustomUserDetailsService;
+import com.aurionpro.security.JwtAuthenticationFilter;
+import com.aurionpro.service.CaptchaService;
+
+import lombok.RequiredArgsConstructor;
+
+@Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final CustomUserDetailsService customUserDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CaptchaService captchaService;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(authz -> authz
+                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/api/organization/**").hasAnyRole("ORGANIZATION_ADMIN", "BANK_ADMIN", "EMPLOYEE")
+                .requestMatchers("/api/bank-admin/**").hasRole("BANK_ADMIN")
+                .requestMatchers("/api/bank-admin/salary-disbursal-requests/**").hasRole("BANK_ADMIN")
+                .requestMatchers("/api/bank-accounts/**").hasAnyRole("ORGANIZATION_ADMIN", "EMPLOYEE", "BANK_ADMIN")
+                .anyRequest().authenticated()
+        )
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public CaptchaValidationFilter captchaValidationFilter() {
+        return new CaptchaValidationFilter(captchaService);
+    }
+}

@@ -1,0 +1,70 @@
+package com.aurionpro.controller;
+
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.aurionpro.dtos.ApiResponseDTO;
+import com.aurionpro.dtos.JwtResponseDTO;
+import com.aurionpro.dtos.OrganizationRegistrationDTO;
+import com.aurionpro.dtos.UserLoginDTO;
+import com.aurionpro.entity.User;
+import com.aurionpro.service.OrganizationService;
+import com.aurionpro.service.UserService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+@Validated
+public class AuthController {
+
+    private final OrganizationService organizationService;
+    private final UserService userService; // For login
+    private final ModelMapper modelMapper;
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponseDTO> registerOrganization(@Valid @RequestBody OrganizationRegistrationDTO registrationDTO) {
+        organizationService.registerOrganization(registrationDTO);
+        return ResponseEntity.ok(new ApiResponseDTO(true, "Organization registered successfully"));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<JwtResponseDTO> loginUser(@Valid @RequestBody UserLoginDTO loginDTO) {
+        String jwt = userService.authenticateUser(loginDTO);
+
+        User user = userService.findByUsernameOrEmail(loginDTO.getUsernameOrEmail());
+
+        JwtResponseDTO response = JwtResponseDTO.builder()
+                .token(jwt)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .roles(user.getRoles().stream()
+                        .map(role -> role.getName().name())
+                        .collect(Collectors.toList()))
+                .expiresIn(86400L)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/user")
+    public ResponseEntity<OrganizationRegistrationDTO> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.findByUsernameOrEmail(userDetails.getUsername());
+        OrganizationRegistrationDTO dto = modelMapper.map(user, OrganizationRegistrationDTO.class);
+        return ResponseEntity.ok(dto);
+    }
+}
