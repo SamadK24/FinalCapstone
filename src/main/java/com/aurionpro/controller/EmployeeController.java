@@ -1,6 +1,7 @@
 package com.aurionpro.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +23,7 @@ public class EmployeeController {
 
     private final EmployeeService employeeService;
 
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<String> addEmployee(@PathVariable Long orgId, @Valid @RequestBody EmployeeCreationDTO dto) {
         employeeService.addEmployee(orgId, dto);

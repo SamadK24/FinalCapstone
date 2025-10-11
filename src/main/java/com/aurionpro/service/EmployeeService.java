@@ -30,6 +30,7 @@ public class EmployeeService {
     private final OrganizationRepository organizationRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService; // inject
 
     @Transactional
     public void addEmployee(Long orgId, EmployeeCreationDTO dto) {
@@ -47,17 +48,18 @@ public class EmployeeService {
         if (userRepository.existsByEmail(dto.getEmail()))
             throw new RuntimeException("Employee email already exists");
 
+        // generate or choose temp password
+        String tempPassword = "defaultPassword123"; // consider generating a random strong password
+
         User employeeUser = new User();
         employeeUser.setUsername(dto.getEmployeeCode());
         employeeUser.setEmail(dto.getEmail());
-        // Initial default password to be reset later via invite/email
-        employeeUser.setPassword(passwordEncoder.encode("defaultPassword123"));
+        employeeUser.setPassword(passwordEncoder.encode(tempPassword));
 
         Role employeeRole = roleRepository.findByName(RoleName.ROLE_EMPLOYEE)
                 .orElseThrow(() -> new RuntimeException("Employee Role not found"));
 
         employeeUser.setRoles(new HashSet<>(java.util.Collections.singletonList(employeeRole)));
-
         userRepository.save(employeeUser);
 
         Employee employee = Employee.builder()
@@ -70,7 +72,13 @@ public class EmployeeService {
 
         employeeRepository.save(employee);
 
-        // TODO: Send employee invite email with password reset link
+        // send welcome email with credentials
+        emailService.sendEmployeeWelcomeWithCredentials(
+                employee.getEmail(),
+                employee.getFullName(),
+                employeeUser.getUsername(),
+                tempPassword
+        );
     }
     public Employee getEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)

@@ -41,6 +41,8 @@ public class OrganizationService {
  // Inject DocumentRepository, CloudinaryService (or equivalent)
     private final DocumentRepository documentRepository;
     private final CloudinaryService cloudinaryService;
+    
+    private final EmailService emailService; // add this
 
     @Transactional
     public Document uploadOrganizationDocument(Long orgId, String documentName, MultipartFile file) throws IOException, java.io.IOException {
@@ -79,7 +81,6 @@ public class OrganizationService {
                 .orElseThrow(() -> new RuntimeException("Organization Admin Role not found"));
 
         adminUser.setRoles(new HashSet<>(Collections.singletonList(organizationAdminRole)));
-
         userRepository.save(adminUser);
 
         Organization organization = Organization.builder()
@@ -92,7 +93,12 @@ public class OrganizationService {
 
         organizationRepository.save(organization);
 
-        // TODO: Send email notification to bank admin for approval
+        // Send email to org admin confirming registration
+        emailService.sendOrganizationRegistered(
+            adminUser.getEmail(),
+            organization.getName(),
+            adminUser.getUsername()
+        );
     }
 
     public List<Organization> getOrganizationsByStatus(Organization.Status status) {
@@ -104,19 +110,22 @@ public class OrganizationService {
         Organization organization = organizationRepository.findById(approvalDTO.getOrganizationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        // Check if organization uploaded any required documents before approval
         if (approvalDTO.getApprove()) {
             if (organization.getDocuments() == null || organization.getDocuments().isEmpty()) {
                 throw new IllegalStateException("Organization has not uploaded mandatory documents");
             }
             organization.setStatus(Organization.Status.APPROVED);
-            // TODO: Notify organization of approval
+            organizationRepository.save(organization);
+
+            String toEmail = organization.getAdminUser().getEmail();
+            emailService.sendOrganizationApproved(toEmail, organization.getName());
         } else {
             organization.setStatus(Organization.Status.REJECTED);
-            // TODO: Save and notify with rejection reason
-        }
+            organizationRepository.save(organization);
 
-        organizationRepository.save(organization);
+            String toEmail = organization.getAdminUser().getEmail();
+            emailService.sendOrganizationRejected(toEmail, organization.getName(), approvalDTO.getRejectionReason());
+        }
     }
 
     public boolean isOrganizationApproved(Long orgId) {

@@ -1,5 +1,7 @@
 package com.aurionpro.entity;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,6 +32,10 @@ public class BankAccount {
 
     @Column(nullable = false)
     private boolean verified;
+    
+    // New: money-safe balance
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

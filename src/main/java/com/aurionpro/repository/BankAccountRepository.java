@@ -1,14 +1,23 @@
 package com.aurionpro.repository;
 
 import java.util.List;
-
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
+import jakarta.persistence.LockModeType;
 import com.aurionpro.entity.BankAccount;
 
 @Repository
 public interface BankAccountRepository extends JpaRepository<BankAccount, Long> {
     List<BankAccount> findByOrganizationId(Long organizationId);
     List<BankAccount> findByEmployeeId(Long employeeId);
+    
+    @Query("select b from BankAccount b where b.organization.id = :orgId and b.verified = true and b.kycStatus = com.aurionpro.entity.BankAccount.KYCDocumentVerificationStatus.VERIFIED")
+    Optional<BankAccount> findFirstVerifiedOrgAccount(@Param("orgId") Long orgId); // pick the payroll account policy
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BankAccount b where b.id = :id")
+    Optional<BankAccount> findByIdForUpdate(@Param("id") Long id);
+    
 }

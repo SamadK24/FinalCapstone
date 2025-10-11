@@ -101,24 +101,59 @@ public class SalaryDisbursalService {
         SalaryDisbursalRequest request = disbursalRequestRepository.findById(approvalDTO.getDisbursalRequestId())
                 .orElseThrow(() -> new ResourceNotFoundException("Salary disbursal request not found"));
 
-        if (approvalDTO.getApprove() == null)
+        if (approvalDTO.getApprove() == null) {
             throw new IllegalArgumentException("Approval decision must be provided");
-
-        if (approvalDTO.getApprove()) {
-            request.setStatus(SalaryDisbursalRequest.Status.APPROVED);
-            request.setRejectionReason(null);
-
-            demoExecutePayment(request);
-
-            notificationService.notifyDisbursalApproval(request.getEmployee().getId(), request.getAmount());
-        } else {
-            request.setStatus(SalaryDisbursalRequest.Status.REJECTED);
-            request.setRejectionReason(approvalDTO.getRejectionReason());
-            notificationService.notifyDisbursalRejection(request.getEmployee().getId(), approvalDTO.getRejectionReason());
         }
 
+        if (!approvalDTO.getApprove()) {
+            request.setStatus(SalaryDisbursalRequest.Status.REJECTED);
+            request.setRejectionReason(approvalDTO.getRejectionReason());
+            disbursalRequestRepository.save(request);
+            notificationService.notifyDisbursalRejection(request.getEmployee().getId(), approvalDTO.getRejectionReason());
+            return;
+        }
+
+        if (request.getStatus() != SalaryDisbursalRequest.Status.PENDING) {
+            throw new IllegalStateException("Only PENDING requests can be approved");
+        }
+
+        Long orgId = request.getOrganization().getId();
+
+        // Choose a verified payroll account for the organization
+        BankAccount orgAccount = bankAccountRepository.findFirstVerifiedOrgAccount(orgId)
+                .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
+
+        // Lock the account row to prevent concurrent overspend
+        BankAccount locked = bankAccountRepository.findByIdForUpdate(orgAccount.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Payroll account not found"));
+
+        // Use BigDecimal for currency math
+        java.math.BigDecimal available = new java.math.BigDecimal(locked.getBalance().toString());
+        java.math.BigDecimal required = java.math.BigDecimal.valueOf(request.getAmount());
+
+        if (available.compareTo(required) < 0) {
+            request.setStatus(SalaryDisbursalRequest.Status.REJECTED);
+            request.setRejectionReason("Insufficient balance: required " + required + ", available " + available);
+            disbursalRequestRepository.save(request);
+            notificationService.notifyDisbursalRejection(request.getEmployee().getId(), request.getRejectionReason());
+            return;
+        }
+
+        // Debit and persist
+        java.math.BigDecimal newBalance = available.subtract(required);
+        locked.setBalance(newBalance);
+        bankAccountRepository.save(locked);
+
+        // Mark request approved and run the existing payment demo
+        request.setStatus(SalaryDisbursalRequest.Status.APPROVED);
+        request.setRejectionReason(null);
         disbursalRequestRepository.save(request);
+
+        demoExecutePayment(request);
+
+        notificationService.notifyDisbursalApproval(request.getEmployee().getId(), request.getAmount());
     }
+
 
     private void demoExecutePayment(SalaryDisbursalRequest request) {
         System.out.println("Transferring " + request.getAmount() + " from org " + request.getOrganization().getName() +

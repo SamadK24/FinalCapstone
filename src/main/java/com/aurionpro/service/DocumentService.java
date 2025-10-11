@@ -16,6 +16,7 @@ import com.aurionpro.repository.OrganizationRepository;
 
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,10 @@ public class DocumentService {
     private final OrganizationRepository organizationRepository;
     private final CloudinaryService cloudinaryService;
     private final EmployeeRepository employeeRepository;
+    private final EmailService emailService; // add this
+    
+    @org.springframework.beans.factory.annotation.Value("${notifications.bank.admin.to:}")
+    private String bankAdminInbox;
     
     @Transactional
     public Document saveEmployeeDocument(Long orgId, Long empId, String name, String filename, String mimeType, MultipartFile file) throws IOException, java.io.IOException {
@@ -59,11 +64,21 @@ public class DocumentService {
                 .url(url)
                 .verificationStatus(Document.VerificationStatus.PENDING)
                 .build();
-        return documentRepository.save(document);
+
+        Document saved = documentRepository.save(document);
+
+        // Acknowledge org admin
+        if (org.getAdminUser() != null && org.getAdminUser().getEmail() != null) {
+            emailService.sendOrgDocReceived(org.getAdminUser().getEmail(), org.getName(), name);
+        }
+        // Notify bank admin inbox if configured
+        if (bankAdminInbox != null && !bankAdminInbox.isBlank()) {
+            emailService.sendOrgDocPendingReview(bankAdminInbox, org.getName(), name);
+        }
+
+        return saved;
     }
-    public List<Document> getEmployeeDocumentsByOrganizationAndVerificationStatus(Long orgId, Document.VerificationStatus status) {
-        return documentRepository.findByOrganizationIdAndVerificationStatus(orgId, status);
-    }
+    
     @Transactional
     public void verifyEmployeeDocument(Long id, boolean approve, String rejectionReason, String reviewer) {
         Document document = getDocumentById(id);
@@ -76,7 +91,21 @@ public class DocumentService {
         }
         document.setReviewer(reviewer);
         documentRepository.save(document);
+
+        // Employee doc decision emails (existing/new behavior)
+        if (document.getEmployee() != null) {
+            String toEmail = document.getEmployee().getEmail();
+            String employeeName = document.getEmployee().getFullName();
+            String docName = document.getName();
+            String orgName = document.getOrganization() != null ? document.getOrganization().getName() : "";
+
+            if (toEmail != null && !toEmail.isBlank()) {
+                if (approve) emailService.sendEmployeeDocumentApproved(toEmail, employeeName, docName, orgName);
+                else emailService.sendEmployeeDocumentRejected(toEmail, employeeName, docName, orgName, rejectionReason);
+            }
+        }
     }
+
 
     @Transactional
     public Document saveDocument(Organization org, Employee emp, String name, String filename, String mimeType, String url) {
@@ -89,7 +118,29 @@ public class DocumentService {
                 .url(url)
                 .verificationStatus(Document.VerificationStatus.PENDING)
                 .build();
-        return documentRepository.save(document);
+
+        Document saved = documentRepository.save(document);
+
+        // If employee doc: acknowledge employee and notify org admin
+        if (emp != null) {
+            if (emp.getEmail() != null) {
+                emailService.sendEmpDocReceived(emp.getEmail(), emp.getFullName(), name, org != null ? org.getName() : "");
+            }
+            if (org != null && org.getAdminUser() != null && org.getAdminUser().getEmail() != null) {
+                emailService.sendEmpDocPendingReview(org.getAdminUser().getEmail(),
+                        org.getName(), emp.getFullName(), emp.getEmployeeCode(), name);
+            }
+        } else if (org != null) {
+            // If this path is used to save org-docs, mirror org upload notifications
+            if (org.getAdminUser() != null && org.getAdminUser().getEmail() != null) {
+                emailService.sendOrgDocReceived(org.getAdminUser().getEmail(), org.getName(), name);
+            }
+            if (bankAdminInbox != null && !bankAdminInbox.isBlank()) {
+                emailService.sendOrgDocPendingReview(bankAdminInbox, org.getName(), name);
+            }
+        }
+
+        return saved;
     }
 
     public List<Document> getDocumentsForVerificationPending() {
@@ -112,5 +163,16 @@ public class DocumentService {
         }
         document.setReviewer(reviewer);
         documentRepository.save(document);
+
+        // Organization doc decision emails (existing behavior)
+        if (document.getOrganization() != null && document.getEmployee() == null) {
+            String orgName = document.getOrganization().getName();
+            String toEmail = document.getOrganization().getAdminUser() != null
+                    ? document.getOrganization().getAdminUser().getEmail() : null;
+            if (toEmail != null && !toEmail.isBlank()) {
+                if (approve) emailService.sendOrganizationDocumentApproved(toEmail, orgName, document.getName());
+                else emailService.sendOrganizationDocumentRejected(toEmail, orgName, document.getName(), rejectionReason);
+            }
+        }
     }
 }
