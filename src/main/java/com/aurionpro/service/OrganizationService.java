@@ -63,7 +63,11 @@ public class OrganizationService {
         return documentRepository.save(document);
     }
 
-   
+    public Organization getOrganizationForAdmin(Long adminUserId) {
+        return organizationRepository.findByAdminUserId(adminUserId)
+              .orElse(null);
+    }
+
     @Transactional
     public void registerOrganization(OrganizationRegistrationDTO dto) {
         if (userRepository.existsByUsername(dto.getAdminUsername()))

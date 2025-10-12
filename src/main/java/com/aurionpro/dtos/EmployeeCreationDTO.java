@@ -24,4 +24,10 @@ public class EmployeeCreationDTO {
 
     @NotBlank(message = "Employee Code is mandatory")
     private String employeeCode;
+
+    private String designation;
+
+    private String department;
+
+    private String dateOfJoining;  // Can use String or LocalDate with conversion logic
 }

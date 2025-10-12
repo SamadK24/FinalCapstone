@@ -1,5 +1,6 @@
 package com.aurionpro.service;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -16,7 +17,6 @@ import com.aurionpro.repository.OrganizationRepository;
 
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +53,16 @@ public class DocumentService {
         return documentRepository.save(document);
     }
 
+    public Document getLatestDocumentForOrganization(Long orgId) {
+        List<Document> docs = documentRepository.findByOrganizationId(orgId);
+        if (docs.isEmpty()) return null;
+
+        // Sort by creation date desc or id desc and return the first
+        return docs.stream()
+            .sorted(Comparator.comparing(Document::getId).reversed())
+            .findFirst()
+            .orElse(null);
+    }
 
     @Transactional
     public Document saveOrganizationDocument(Organization org, String name, String filename, String mimeType, String url) {
@@ -75,7 +85,11 @@ public class DocumentService {
         if (bankAdminInbox != null && !bankAdminInbox.isBlank()) {
             emailService.sendOrgDocPendingReview(bankAdminInbox, org.getName(), name);
         }
-
+        if (org.getStatus() == Organization.Status.REJECTED) {
+            org.setStatus(Organization.Status.PENDING);
+            organizationRepository.save(org);
+        }
+       
         return saved;
     }
     
@@ -91,6 +105,9 @@ public class DocumentService {
         }
         document.setReviewer(reviewer);
         documentRepository.save(document);
+        
+        Organization org = document.getOrganization();
+      
 
         // Employee doc decision emails (existing/new behavior)
         if (document.getEmployee() != null) {
@@ -98,6 +115,7 @@ public class DocumentService {
             String employeeName = document.getEmployee().getFullName();
             String docName = document.getName();
             String orgName = document.getOrganization() != null ? document.getOrganization().getName() : "";
+            
 
             if (toEmail != null && !toEmail.isBlank()) {
                 if (approve) emailService.sendEmployeeDocumentApproved(toEmail, employeeName, docName, orgName);
@@ -153,17 +171,22 @@ public class DocumentService {
 
     @Transactional
     public void verifyDocument(Long id, boolean approve, String rejectionReason, String reviewer) {
-        Document document = getDocumentById(id);
-        if (approve) {
-            document.setVerificationStatus(Document.VerificationStatus.VERIFIED);
-            document.setRejectionReason(null);
-        } else {
-            document.setVerificationStatus(Document.VerificationStatus.REJECTED);
-            document.setRejectionReason(rejectionReason);
-        }
-        document.setReviewer(reviewer);
-        documentRepository.save(document);
+    	 Document document = getDocumentById(id);
+    	    if (approve) {
+    	        document.setVerificationStatus(Document.VerificationStatus.VERIFIED);
+    	        document.setRejectionReason(null);
+    	    } else {
+    	        document.setVerificationStatus(Document.VerificationStatus.REJECTED);
+    	        document.setRejectionReason(rejectionReason);
+    	    }
+    	    document.setReviewer(reviewer);
+    	    documentRepository.save(document);
 
+    	    Organization org = document.getOrganization();
+    	    if (org != null) {
+    	        org.setStatus(approve ? Organization.Status.APPROVED : Organization.Status.REJECTED);
+    	        organizationRepository.save(org);
+    	    }
         // Organization doc decision emails (existing behavior)
         if (document.getOrganization() != null && document.getEmployee() == null) {
             String orgName = document.getOrganization().getName();
@@ -175,4 +198,9 @@ public class DocumentService {
             }
         }
     }
+    
+    public List<Document> getDocumentsPendingByOrganization(Long orgId) {
+        return documentRepository.findByOrganizationIdAndVerificationStatus(orgId, Document.VerificationStatus.PENDING);
+    }
+
 }

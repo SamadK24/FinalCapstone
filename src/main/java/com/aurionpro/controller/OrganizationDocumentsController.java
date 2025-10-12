@@ -66,4 +66,15 @@ public class OrganizationDocumentsController {
             .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
+    
+    @GetMapping("/status")
+    public ResponseEntity<DocumentResponseDTO> getDocumentStatus(@PathVariable Long orgId) {
+        // Fetch the latest relevant document by orgId (you can define logic based on your needs)
+        Document latestDoc = documentService.getLatestDocumentForOrganization(orgId);
+        if (latestDoc == null) {
+            return ResponseEntity.noContent().build();
+        }
+        DocumentResponseDTO dto = modelMapper.map(latestDoc, DocumentResponseDTO.class);
+        return ResponseEntity.ok(dto);
+    }
 }

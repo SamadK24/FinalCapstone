@@ -75,6 +75,13 @@ public class Employee {
     
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BankAccount> bankAccounts;
+    
+    @Column(nullable = true)
+    private String designation;
+
+    @Column(nullable = true)
+    private String department;
+
 
 
 }

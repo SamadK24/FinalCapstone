@@ -1,5 +1,6 @@
 package com.aurionpro.service;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,6 +48,14 @@ public class EmployeeService {
 
         if (userRepository.existsByEmail(dto.getEmail()))
             throw new RuntimeException("Employee email already exists");
+        
+        LocalDate joiningDate;
+
+        if (dto.getDateOfJoining() == null || dto.getDateOfJoining().isEmpty()) {
+            joiningDate = LocalDate.now();
+        } else {
+            joiningDate = LocalDate.parse(dto.getDateOfJoining());  // Make sure dto date format matches ISO yyyy-MM-dd
+        }
 
         // generate or choose temp password
         String tempPassword = "defaultPassword123"; // consider generating a random strong password

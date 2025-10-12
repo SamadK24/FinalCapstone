@@ -14,5 +14,7 @@ import ch.qos.logback.core.status.Status;
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
     Optional<Organization> findByName(String name);
     List<Organization> findByStatus(Organization.Status status);
+    Optional<Organization> findByAdminUserId(Long adminUserId);
+    
 
 }

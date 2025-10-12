@@ -12,7 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 public class CaptchaService {
 
     private static final String CAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
-    private static final String SECRET_KEY = "your_secret_key_here";
+    private static final String SECRET_KEY = "6LfQs-YrAAAAAB_WE84MZT4bMnx_etGUZ_CoXY2n";
+    
 
     public boolean verifyCaptcha(String captchaToken) {
         RestTemplate restTemplate = new RestTemplate();

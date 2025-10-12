@@ -19,7 +19,7 @@ public class EmployeeSalaryController {
 
     private final EmployeeSalaryService employeeSalaryService;
 
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') or hasRole('HR')")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/assign-template/{employeeId}/{templateId}")
     public ResponseEntity<String> assignTemplate(@PathVariable Long employeeId,
                                                  @PathVariable Long templateId) {
@@ -27,7 +27,7 @@ public class EmployeeSalaryController {
         return ResponseEntity.ok("Salary template assigned successfully");
     }
 
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') or hasRole('HR')")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/override-salary")
     public ResponseEntity<String> overrideSalary(@Valid @RequestBody EmployeeSalaryOverrideDTO overrideDTO) {
         employeeSalaryService.overrideEmployeeSalary(overrideDTO);
