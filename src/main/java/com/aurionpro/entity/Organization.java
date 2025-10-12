@@ -70,6 +70,4 @@ public class Organization {
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BankAccount> payrollBankAccounts;
 
-
-
 }

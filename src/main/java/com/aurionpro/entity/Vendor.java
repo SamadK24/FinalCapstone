@@ -51,10 +51,33 @@ public class Vendor {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private Status status = Status.ACTIVE;
 
     // Optional Cloudinary document public IDs (comma-separated or moved to a separate table if needed)
     @Column(length = 512)
     private String documentRefs;
+    
+ // new fields
+    private java.time.Instant lastKycReviewedAt;
+
+    @jakarta.persistence.Column(length = 100)
+    private String lastKycReviewedBy;
+
+    @jakarta.persistence.Column(length = 500)
+    private String kycReviewReason;
+
+    // safety defaults for builder and any path that leaves enums null
+    @jakarta.persistence.PrePersist
+    public void prePersistDefaults() {
+        if (this.kycStatus == null) {
+            this.kycStatus = com.aurionpro.entity.BankAccount.KYCDocumentVerificationStatus.PENDING;
+        }
+        if (this.status == null) {
+            this.status = Status.ACTIVE;
+        }
+    }
+
+
 }
 
