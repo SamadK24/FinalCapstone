@@ -8,5 +8,6 @@ import com.aurionpro.entity.DisbursalLine;
 @Repository
 public interface DisbursalLineRepository extends JpaRepository<DisbursalLine, Long> {
     List<DisbursalLine> findByBatchId(Long batchId);
+    boolean existsByIdAndBatch_OrganizationIdAndEmployeeId(Long id, Long organizationId, Long employeeId);
 }
 

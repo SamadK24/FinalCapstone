@@ -10,4 +10,7 @@ import com.aurionpro.entity.Employee;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 	 Optional<Employee> findByUserAccountId(Long userId);
+	 boolean existsByIdAndOrganizationId(Long id, Long organizationId);
+	 Optional<Long> findIdByOrganizationIdAndEmployeeCode(Long organizationId, String employeeCode);
+ // for employeeCode resolution
 }

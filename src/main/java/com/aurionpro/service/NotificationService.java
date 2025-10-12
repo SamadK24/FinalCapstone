@@ -1,8 +1,14 @@
 package com.aurionpro.service;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.aurionpro.entity.Concern.ConcernStatus;
+
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class NotificationService {
 
     public void notifyDisbursalApproval(Long employeeId, Double amount) {
@@ -32,4 +38,17 @@ public class NotificationService {
     public void notifyKycRejected(Long entityId, String entityType, String reason) {
         System.out.println("Notify " + entityType + " " + entityId + " of KYC rejection: " + reason);
     }
+    
+    @Async // Remove if @EnableAsync not configured
+    public void notifyOrgAdminsConcernCreated(Long orgId, Long concernId) {
+        try {
+            // mailService.sendConcernCreated(orgId, concernId);
+            log.info("Concern created notification queued: orgId={}, concernId={}", orgId, concernId);
+        } catch (Exception ex) {
+            // Do not break the main flow
+            log.warn("Failed to send concern notification: {}", ex.getMessage());
+        }
+    }
+    public void notifyEmployeeConcernComment(Long employeeId, Long concernId) { /* log only */ }
+    public void notifyEmployeeConcernResolved(Long employeeId, Long concernId, ConcernStatus status) { /* log only */ }
 }

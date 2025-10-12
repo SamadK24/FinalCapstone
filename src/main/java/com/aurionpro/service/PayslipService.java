@@ -96,5 +96,12 @@ public class PayslipService {
         private String transactionRef;
         private java.time.Instant generatedAt;
     }
+    
+    public void assertPayslipOwnedBy(Long payslipId, Long orgId, Long employeeId) {
+        boolean exists = payslipRepository.existsByIdAndOrganizationIdAndEmployeeId(payslipId, orgId, employeeId);
+        if (!exists) {
+            throw new ResourceNotFoundException("Payslip not found for employee in organization");
+        }
+    }
 }
 

@@ -1,14 +1,17 @@
 package com.aurionpro.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.aurionpro.dtos.AttachmentResponse;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Organization;
+import com.aurionpro.exceptions.BusinessRuleException;
 import com.aurionpro.exceptions.ResourceNotFoundException;
 import com.aurionpro.repository.DocumentRepository;
 import com.aurionpro.repository.EmployeeRepository;
@@ -16,7 +19,6 @@ import com.aurionpro.repository.OrganizationRepository;
 
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -173,6 +175,18 @@ public class DocumentService {
                 if (approve) emailService.sendOrganizationDocumentApproved(toEmail, orgName, document.getName());
                 else emailService.sendOrganizationDocumentRejected(toEmail, orgName, document.getName(), rejectionReason);
             }
+        }
+    }
+    
+    public AttachmentResponse storeEmployeeConcernAttachment(Long orgId, Long employeeId, MultipartFile file) {
+        try {
+            String url = cloudinaryService.uploadFile(file); // returns secure_url
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+            long size = file.getSize();
+
+            return new AttachmentResponse(url, contentType, size, Instant.now());
+        } catch (Exception e) {
+            throw new BusinessRuleException("Upload failed: " + e.getMessage());
         }
     }
 }
