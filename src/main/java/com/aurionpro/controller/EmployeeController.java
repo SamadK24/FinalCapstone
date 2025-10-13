@@ -1,5 +1,7 @@
 package com.aurionpro.controller;
 
+
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aurionpro.dtos.EmployeeCreationDTO;
+import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.service.EmployeeService;
 
 import jakarta.validation.Valid;
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @Validated
 public class EmployeeController {
 
+    private final EmployeeRepository employeeRepository;
     private final EmployeeService employeeService;
 
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
@@ -29,4 +33,6 @@ public class EmployeeController {
         employeeService.addEmployee(orgId, dto);
         return ResponseEntity.ok("Employee added successfully");
     }
+    
+   
 }
