@@ -93,5 +93,17 @@ public class EmployeeService {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
+    
+    public void assertEmployeeInOrg(Long employeeId, Long orgId) {
+        boolean exists = employeeRepository.existsByIdAndOrganizationId(employeeId, orgId);
+        if (!exists) {
+            throw new ResourceNotFoundException("Employee not found in organization");
+        }
+    }
+    
+//    public Long resolveEmployeeId(Long orgId, String employeeCode) {
+//        return employeeRepository.findIdByOrganizationIdAndCode(orgId, employeeCode)
+//                .orElseThrow(() -> new ResourceNotFoundException("Employee code not found in organization"));
+//    }
 
 }

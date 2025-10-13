@@ -1,5 +1,6 @@
 package com.aurionpro.service;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
@@ -7,9 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.aurionpro.dtos.AttachmentResponse;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Organization;
+import com.aurionpro.exceptions.BusinessRuleException;
 import com.aurionpro.exceptions.ResourceNotFoundException;
 import com.aurionpro.repository.DocumentRepository;
 import com.aurionpro.repository.EmployeeRepository;
@@ -201,6 +204,18 @@ public class DocumentService {
     
     public List<Document> getDocumentsPendingByOrganization(Long orgId) {
         return documentRepository.findByOrganizationIdAndVerificationStatus(orgId, Document.VerificationStatus.PENDING);
+    }
+
+    public AttachmentResponse storeEmployeeConcernAttachment(Long orgId, Long employeeId, MultipartFile file) {
+        try {
+            String url = cloudinaryService.uploadFile(file); // returns secure_url
+            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+            long size = file.getSize();
+
+            return new AttachmentResponse(url, contentType, size, Instant.now());
+        } catch (Exception e) {
+            throw new BusinessRuleException("Upload failed: " + e.getMessage());
+        }
     }
 
 }
