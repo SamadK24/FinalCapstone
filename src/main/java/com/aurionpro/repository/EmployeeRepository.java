@@ -1,5 +1,6 @@
 package com.aurionpro.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,5 +13,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 	 Optional<Employee> findByUserAccountId(Long userId);
 	 boolean existsByIdAndOrganizationId(Long id, Long organizationId);
 	 Optional<Long> findIdByOrganizationIdAndEmployeeCode(Long organizationId, String employeeCode);
+	 List<Employee> findByOrganizationId(Long orgId);
+
  // for employeeCode resolution
 }
