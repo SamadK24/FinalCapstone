@@ -4,7 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-@SpringBootApplication
+
+@SpringBootApplication(scanBasePackages = "com.aurionpro")
 public class MyProjectApplication {
 
 	public static void main(String[] args) {

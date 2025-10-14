@@ -2,12 +2,16 @@ package com.aurionpro.service;
 
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aurionpro.dtos.EmployeeCreationDTO;
+import com.aurionpro.dtos.EmployeeProfileDTO;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Organization;
 import com.aurionpro.entity.Role;
@@ -32,6 +36,26 @@ public class EmployeeService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService; // inject
+    
+    
+    private final ModelMapper modelMapper;  // inject ModelMapper
+
+    public List<EmployeeProfileDTO> getEmployeesByOrganization(Long orgId) {
+        List<Employee> employees = employeeRepository.findByOrganizationId(orgId);
+
+        return employees.stream().map(employee -> {
+            EmployeeProfileDTO dto = modelMapper.map(employee, EmployeeProfileDTO.class);
+            if (employee.getSalaryTemplate() != null) {
+                dto.setSalaryTemplateId(employee.getSalaryTemplate().getId());
+                dto.setSalaryTemplateName(employee.getSalaryTemplate().getTemplateName());
+            }
+            if (employee.getDateOfJoining() != null) {
+                dto.setDateOfJoining(employee.getDateOfJoining().toString());
+            }
+            return dto;
+        }).collect(Collectors.toList());
+    }
+    
 
     @Transactional
     public void addEmployee(Long orgId, EmployeeCreationDTO dto) {
@@ -70,6 +94,8 @@ public class EmployeeService {
 
         employeeUser.setRoles(new HashSet<>(java.util.Collections.singletonList(employeeRole)));
         userRepository.save(employeeUser);
+        
+      
 
         Employee employee = Employee.builder()
                 .fullName(dto.getFullName())
@@ -77,6 +103,9 @@ public class EmployeeService {
                 .employeeCode(dto.getEmployeeCode())
                 .userAccount(employeeUser)
                 .organization(organization)
+                .department(dto.getDepartment())
+                .designation(dto.getDesignation())
+                .dateOfJoining(joiningDate)
                 .build();
 
         employeeRepository.save(employee);

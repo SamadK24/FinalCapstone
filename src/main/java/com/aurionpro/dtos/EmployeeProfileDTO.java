@@ -18,4 +18,6 @@ public class EmployeeProfileDTO {
     private String designation;
     private String department;
     private String dateOfJoining;
+    private Long salaryTemplateId;        // Add this
+    private String salaryTemplateName;    // Add this
 }
