@@ -2,37 +2,19 @@ package com.aurionpro.entity;
 
 import java.time.LocalDate;
 import java.util.Set;
-
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "employees",
        uniqueConstraints = {
-           @UniqueConstraint(columnNames = "email")
+           @UniqueConstraint(columnNames = "email"),
+           @UniqueConstraint(columnNames = "employeeCode")
        })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Employee {
+
+    public enum Status { ACTIVE, INACTIVE }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,32 +38,39 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
-    
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "salary_template_id")
     private SalaryTemplate salaryTemplate;
 
-    @Column(nullable = true)
+    @Column
     private Double overrideBasicSalary;
-
-    @Column(nullable = true)
+    @Column
     private Double overrideHra;
-
-    @Column(nullable = true)
+    @Column
     private Double overrideAllowances;
-
-    @Column(nullable = true)
+    @Column
     private Double overrideDeductions;
-    
+
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BankAccount> bankAccounts;
-    
-    @Column(nullable = true)
-    private String designation;
 
-    @Column(nullable = true)
+    @Column
+    private String designation;
+    @Column
     private String department;
 
+    // Added for profile
+    @Column(length = 15)
+    private String phone;
 
+    @Column(length = 100)
+    private String altEmail;
 
+    @Column(length = 255)
+    private String address;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status = Status.ACTIVE;
 }
