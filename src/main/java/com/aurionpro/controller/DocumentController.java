@@ -65,6 +65,17 @@ public class DocumentController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
+    
+    //organization can see pending documents of their employee
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    @GetMapping("/{orgId}/pending")
+    public ResponseEntity<List<DocumentResponseDTO>> listOrganizationPendingDocuments(@PathVariable Long orgId) {
+        List<Document> pendingDocs = documentService.getDocumentsPendingByOrganization(orgId);
+        List<DocumentResponseDTO> dtos = pendingDocs.stream()
+                .map(doc -> modelMapper.map(doc, DocumentResponseDTO.class))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
 
     @PreAuthorize("hasRole('BANK_ADMIN') or hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/{id}/review")

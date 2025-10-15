@@ -9,11 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dtos.AttachmentResponse;
+import com.aurionpro.entity.BankAccount;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Organization;
 import com.aurionpro.exceptions.BusinessRuleException;
 import com.aurionpro.exceptions.ResourceNotFoundException;
+import com.aurionpro.repository.BankAccountRepository;
 import com.aurionpro.repository.DocumentRepository;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.OrganizationRepository;
@@ -31,6 +33,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final OrganizationRepository organizationRepository;
     private final CloudinaryService cloudinaryService;
     private final EmployeeRepository employeeRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final EmailService emailService;
 
     @org.springframework.beans.factory.annotation.Value("${notifications.bank.admin.to:}")
@@ -189,10 +192,14 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Document> getDocumentsPendingByOrganization(Long orgId) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new RuntimeException("Organization not found with ID: " + orgId));
+
+        // Option A: repository supports findByOrganizationAndStatus
         return documentRepository.findByOrganizationIdAndVerificationStatus(orgId, Document.VerificationStatus.PENDING);
     }
-
     @Override
     public AttachmentResponse storeEmployeeConcernAttachment(Long orgId, Long employeeId, MultipartFile file) {
         try {
@@ -203,6 +210,20 @@ public class DocumentServiceImpl implements DocumentService {
         } catch (Exception e) {
             throw new BusinessRuleException("Upload failed: " + e.getMessage());
         }
+    }
+    @Override
+    public String getStatusByEmployee(Employee employee) {
+        List<BankAccount> accounts = bankAccountRepository.findByEmployee(employee);
+        if (accounts.isEmpty()) 
+            return null;
+
+        BankAccount latestAccount = accounts.stream()
+                .max(Comparator.comparing(BankAccount::getId))
+                .orElse(null);
+
+        return (latestAccount != null && latestAccount.getKycStatus() != null)
+                ? latestAccount.getKycStatus().name()
+                : null;
     }
 }
 

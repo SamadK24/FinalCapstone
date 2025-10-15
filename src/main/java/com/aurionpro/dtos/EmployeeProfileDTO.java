@@ -12,7 +12,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class EmployeeProfileDTO {
-	private Long id;
+
+	private Long id; 
+	private Long organizationId;
     private String fullName;
     private String email;
     private String employeeCode;
@@ -20,5 +22,8 @@ public class EmployeeProfileDTO {
     private String department;
     private String dateOfJoining;
     private Long salaryTemplateId;        // Add this
-    private String salaryTemplateName;    // Add this
+    private String salaryTemplateName;
+    private String kycDocumentStatus;  // e.g., "PENDING", "APPROVED", "REJECTED"
+    private String bankAccountStatus;  // e.g., "PENDING", "APPROVED", "REJECTED"
+
 }

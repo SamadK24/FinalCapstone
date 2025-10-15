@@ -1,5 +1,6 @@
 package com.aurionpro.service.impl;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -102,13 +103,43 @@ public class BankAccountServiceImpl implements BankAccountService {
         bankAccountRepository.save(bankAccount);
     }
 
-    @Override
-    public List<BankAccount> getBankAccountsForEmployee(Long employeeId) {
-        return bankAccountRepository.findByEmployeeId(employeeId);
-    }
 
     @Override
     public List<BankAccount> getBankAccountsForOrganization(Long organizationId) {
         return bankAccountRepository.findByOrganizationId(organizationId);
     }
+    
+    @Override
+    public List<BankAccount> getBankAccountsForEmployee(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found with ID: " + employeeId));
+
+        return bankAccountRepository.findByEmployee(employee);
+    }
+
+    @Override
+    public String getStatusByEmployee(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found with ID: " + employeeId));
+
+        return getStatusByEmployee(employee);
+    }
+
+    // ✅ Get latest KYC status by Employee entity
+    @Override
+    public String getStatusByEmployee(Employee employee) {
+        List<BankAccount> accounts = bankAccountRepository.findByEmployee(employee);
+        if (accounts.isEmpty()) 
+            return null;
+
+        BankAccount latestAccount = accounts.stream()
+                .max(Comparator.comparing(BankAccount::getId))
+                .orElse(null);
+
+        return (latestAccount != null && latestAccount.getKycStatus() != null)
+                ? latestAccount.getKycStatus().name()
+                : null;
+    }
+
+
 }

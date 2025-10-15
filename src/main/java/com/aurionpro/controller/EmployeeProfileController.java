@@ -21,6 +21,8 @@ import com.aurionpro.entity.User;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.UserRepository;
 import com.aurionpro.security.CustomUserDetails;
+import com.aurionpro.service.BankAccountService;
+import com.aurionpro.service.DocumentService;
 import com.aurionpro.service.EmployeeProfileService;
 import com.aurionpro.service.EmployeeService;
 
@@ -37,34 +39,41 @@ public class EmployeeProfileController {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
+    private final DocumentService documentService;
+    private final BankAccountService bankAccountService;
 
     // ✅ View own profile
     @GetMapping("/employee/self")
-    @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<EmployeeProfileDTO> getSelfProfile(Authentication authentication) {
-        String usernameOrEmail = authentication.getName();  // username or email
-
+        String usernameOrEmail = authentication.getName();
         User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + usernameOrEmail));
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long userId = user.getId();
+        Employee employee = employeeRepository.findByUserAccountId(user.getId())
+            .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        Employee employee = employeeRepository.findByUserAccountId(userId)
-                .orElseThrow(() -> new RuntimeException("Employee not found for user " + userId));
+        // Fetch statuses from your Document and BankAccount entities or service
+        String kycStatus = documentService.getStatusByEmployee(employee);
+        String bankStatus = bankAccountService.getStatusByEmployee(employee);
 
         EmployeeProfileDTO dto = EmployeeProfileDTO.builder()
-                .fullName(employee.getFullName())
-                .email(employee.getEmail())
-                .employeeCode(employee.getEmployeeCode())
-                .designation(employee.getDesignation())
-                .department(employee.getDepartment())
-                .dateOfJoining(employee.getDateOfJoining() != null
-                        ? employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE)
-                        : null)
-                .build();
+            .id(employee.getId())
+            .organizationId(employee.getOrganization() != null ? employee.getOrganization().getId() : null)
+            .fullName(employee.getFullName())
+            .email(employee.getEmail())
+            .employeeCode(employee.getEmployeeCode())
+            .designation(employee.getDesignation())
+            .department(employee.getDepartment())
+            .dateOfJoining(employee.getDateOfJoining() != null ? employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE) : null)
+            .salaryTemplateId(employee.getSalaryTemplate() != null ? employee.getSalaryTemplate().getId() : null)
+            .salaryTemplateName(employee.getSalaryTemplate() != null ? employee.getSalaryTemplate().getTemplateName() : null)
+            .kycDocumentStatus(kycStatus)
+            .bankAccountStatus(bankStatus)
+            .build();
 
         return ResponseEntity.ok(dto);
     }
+
 
     // ✅ Update profile (only own)
     @PreAuthorize("hasRole('EMPLOYEE')")

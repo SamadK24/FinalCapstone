@@ -21,11 +21,13 @@ public class EmployeeSalaryController {
 
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/assign-template/{employeeId}/{templateId}")
-    public ResponseEntity<String> assignTemplate(@PathVariable Long employeeId,
-                                                 @PathVariable Long templateId) {
+    public ResponseEntity<?> assignTemplate(@PathVariable Long employeeId,
+                                            @PathVariable Long templateId) {
         employeeSalaryService.assignTemplateToEmployee(employeeId, templateId);
-        return ResponseEntity.ok("Salary template assigned successfully");
+        // Always return JSON object, not a raw string
+        return ResponseEntity.ok(java.util.Collections.singletonMap("message", "Salary template assigned successfully"));
     }
+
 
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/override-salary")

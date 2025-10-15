@@ -28,4 +28,3 @@ public class SecurityService {
         return organizationRepository.existsByIdAndAdminUserUsername(orgId, username);
     }
 }
-

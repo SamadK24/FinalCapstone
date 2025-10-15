@@ -50,7 +50,16 @@ public class BankAccountController {
         BankAccount savedAccount = bankAccountService.addOrUpdateOrganizationBankAccount(orgId, bankAccount, currentUser.getUsername());
         return ResponseEntity.ok(modelMapper.map(savedAccount, BankAccountDTO.class));
     }
-
+    
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') or hasRole('EMPLOYEE')")
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<List<BankAccountDTO>> listEmployeeBankAccounts(@PathVariable Long employeeId) {
+        List<BankAccount> accounts = bankAccountService.getBankAccountsForEmployee(employeeId);
+        List<BankAccountDTO> dtoList = accounts.stream()
+                .map(acc -> modelMapper.map(acc, BankAccountDTO.class))
+                .toList();
+        return ResponseEntity.ok(dtoList);
+    }
 
     @PreAuthorize("hasRole('BANK_ADMIN')")
     @PostMapping("/{bankAccountId}/kyc-approval")
@@ -72,15 +81,7 @@ public class BankAccountController {
         bankAccountService.approveOrRejectEmployeeKyc(orgId, bankAccountId, approve, rejectionReason, currentUser.getUsername());
         return ResponseEntity.ok("Employee bank account KYC status updated successfully");
     }
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') or hasRole('EMPLOYEE')")
-    @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<BankAccountDTO>> listEmployeeBankAccounts(@PathVariable Long employeeId) {
-        List<BankAccount> accounts = bankAccountService.getBankAccountsForEmployee(employeeId);
-        List<BankAccountDTO> dtoList = accounts.stream()
-                .map(acc -> modelMapper.map(acc, BankAccountDTO.class))
-                .toList();
-        return ResponseEntity.ok(dtoList);
-    }
+
 
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @GetMapping("/organization/{orgId}")

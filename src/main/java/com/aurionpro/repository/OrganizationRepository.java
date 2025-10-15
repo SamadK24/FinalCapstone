@@ -11,8 +11,8 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     Optional<Organization> findByName(String name);
     List<Organization> findByStatus(Organization.Status status);
     Optional<Organization> findByAdminUserId(Long adminUserId);
+    boolean existsByIdAndAdminUserUsername(Long orgId, String username);
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long excludeId);
-    boolean existsByIdAndAdminUserUsername(Long orgId, String username);
 }
 

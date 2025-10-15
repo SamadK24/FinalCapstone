@@ -24,6 +24,7 @@ public interface EmployeeService {
      * Load employee by ID
      */
     Employee getEmployeeById(Long employeeId);
+    
 
     /**
      * Ensure the employee belongs to the given organization

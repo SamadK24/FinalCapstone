@@ -26,8 +26,8 @@ public interface DocumentService {
     Document getDocumentById(Long id);
 
     void verifyDocument(Long id, boolean approve, String rejectionReason, String reviewer);
-
     List<Document> getDocumentsPendingByOrganization(Long orgId);
+    String getStatusByEmployee(Employee employee);
 
     AttachmentResponse storeEmployeeConcernAttachment(Long orgId, Long employeeId, MultipartFile file);
 }
