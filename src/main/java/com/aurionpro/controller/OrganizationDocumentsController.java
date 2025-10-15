@@ -50,12 +50,15 @@ public class OrganizationDocumentsController {
         Organization org = organizationService.getOrganizationById(orgId);
 
         String fileUrl = cloudinaryService.uploadFile(file);
-
-        Document doc = documentService.saveOrganizationDocument(org, documentName, file.getOriginalFilename(), file.getContentType(), fileUrl);
+        Document doc = documentService.saveOrganizationDocument(
+                org, documentName, file.getOriginalFilename(),
+                file.getContentType(), fileUrl
+        );
 
         DocumentResponseDTO dto = modelMapper.map(doc, DocumentResponseDTO.class);
         return ResponseEntity.ok(dto);
     }
+
     
     @PreAuthorize("hasRole('BANK_ADMIN')")
     @GetMapping("/organizations/pending")

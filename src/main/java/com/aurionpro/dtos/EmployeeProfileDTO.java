@@ -12,6 +12,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class EmployeeProfileDTO {
+	private Long id;
     private String fullName;
     private String email;
     private String employeeCode;

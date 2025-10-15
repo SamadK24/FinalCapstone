@@ -1,85 +1,56 @@
 package com.aurionpro.service;
 
+import com.aurionpro.service.PayslipService.PayslipDetailDTO;
+import com.aurionpro.service.PayslipService.PayslipListItemDTO;
+import com.aurionpro.dtos.EmployeePayslipView;
+
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.aurionpro.entity.Payslip;
-import com.aurionpro.exceptions.ResourceNotFoundException;
-import com.aurionpro.repository.PayslipRepository;
-import lombok.RequiredArgsConstructor;
 
-@Service
-@RequiredArgsConstructor
-public class PayslipService {
+public interface PayslipService {
 
-    private final PayslipRepository payslipRepository;
-    private final ModelMapper modelMapper;
+    /**
+     * Fetch a detailed EmployeePayslipView for PDF/Display
+     */
+    EmployeePayslipView getEmployeePayslipView(Long employeeId, Long payslipId);
 
-    @Transactional(readOnly = true)
-    public List<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month) {
-        List<Payslip> slips = (month == null)
-                ? payslipRepository.findByEmployeeId(employeeId)
-                : payslipRepository.findByEmployeeIdAndSalaryMonth(employeeId, month);
+    /**
+     * List payslips for an employee, optionally filtered by month
+     */
+    List<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month);
 
-        return slips.stream().map(this::toListItem).collect(Collectors.toList());
-    }
+    /**
+     * Fetch detailed payslip information for UI
+     */
+    PayslipDetailDTO getPayslipDetail(Long employeeId, Long payslipId);
 
-    @Transactional(readOnly = true)
-    public PayslipDetailDTO getPayslipDetail(Long employeeId, Long payslipId) {
-        Payslip p = payslipRepository.findById(payslipId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payslip not found"));
+    /**
+     * Validate that a payslip exists and belongs to the employee/org
+     */
+    void assertPayslipOwnedBy(Long payslipId, Long orgId, Long employeeId);
 
-        if (!p.getEmployee().getId().equals(employeeId)) {
-            throw new IllegalArgumentException("Access denied for this payslip");
-        }
-        return toDetail(p);
-    }
-
-    private PayslipListItemDTO toListItem(Payslip p) {
-        PayslipListItemDTO dto = new PayslipListItemDTO();
-        dto.setPayslipId(p.getId());
-        dto.setSalaryMonth(p.getSalaryMonth());
-        dto.setNetAmount(p.getNetAmount());
-        dto.setTransactionRef(p.getTransactionRef());
-        dto.setGeneratedAt(p.getGeneratedAt());
-        return dto;
-    }
-
-    private PayslipDetailDTO toDetail(Payslip p) {
-        PayslipDetailDTO dto = new PayslipDetailDTO();
-        dto.setPayslipId(p.getId());
-        dto.setEmployeeId(p.getEmployee().getId());
-        dto.setEmployeeName(p.getEmployee().getFullName());
-        dto.setOrganizationId(p.getOrganization().getId());
-        dto.setOrganizationName(p.getOrganization().getName());
-        dto.setBatchId(p.getBatch().getId());
-        dto.setLineId(p.getLine().getId());
-        dto.setSalaryMonth(p.getSalaryMonth());
-        dto.setBasic(p.getBasic());
-        dto.setHra(p.getHra());
-        dto.setAllowances(p.getAllowances());
-        dto.setDeductions(p.getDeductions());
-        dto.setNetAmount(p.getNetAmount());
-        dto.setTransactionRef(p.getTransactionRef());
-        dto.setGeneratedAt(p.getGeneratedAt());
-        return dto;
-    }
-
-    // DTOs (inner or separate files)
-    @lombok.Getter @lombok.Setter
-    public static class PayslipListItemDTO {
+    // DTOs can be inner classes or separate files
+    class PayslipListItemDTO {
         private Long payslipId;
-        private java.time.LocalDate salaryMonth;
+        private LocalDate salaryMonth;
         private java.math.BigDecimal netAmount;
         private String transactionRef;
         private java.time.Instant generatedAt;
+
+        // getters and setters
+        public Long getPayslipId() { return payslipId; }
+        public void setPayslipId(Long payslipId) { this.payslipId = payslipId; }
+        public LocalDate getSalaryMonth() { return salaryMonth; }
+        public void setSalaryMonth(LocalDate salaryMonth) { this.salaryMonth = salaryMonth; }
+        public java.math.BigDecimal getNetAmount() { return netAmount; }
+        public void setNetAmount(java.math.BigDecimal netAmount) { this.netAmount = netAmount; }
+        public String getTransactionRef() { return transactionRef; }
+        public void setTransactionRef(String transactionRef) { this.transactionRef = transactionRef; }
+        public java.time.Instant getGeneratedAt() { return generatedAt; }
+        public void setGeneratedAt(java.time.Instant generatedAt) { this.generatedAt = generatedAt; }
     }
 
-    @lombok.Getter @lombok.Setter
-    public static class PayslipDetailDTO {
+    class PayslipDetailDTO {
         private Long payslipId;
         private Long employeeId;
         private String employeeName;
@@ -87,7 +58,7 @@ public class PayslipService {
         private String organizationName;
         private Long batchId;
         private Long lineId;
-        private java.time.LocalDate salaryMonth;
+        private LocalDate salaryMonth;
         private java.math.BigDecimal basic;
         private java.math.BigDecimal hra;
         private java.math.BigDecimal allowances;
@@ -95,13 +66,37 @@ public class PayslipService {
         private java.math.BigDecimal netAmount;
         private String transactionRef;
         private java.time.Instant generatedAt;
-    }
-    
-    public void assertPayslipOwnedBy(Long payslipId, Long orgId, Long employeeId) {
-        boolean exists = payslipRepository.existsByIdAndOrganizationIdAndEmployeeId(payslipId, orgId, employeeId);
-        if (!exists) {
-            throw new ResourceNotFoundException("Payslip not found for employee in organization");
-        }
+
+        // getters and setters
+        public Long getPayslipId() { return payslipId; }
+        public void setPayslipId(Long payslipId) { this.payslipId = payslipId; }
+        public Long getEmployeeId() { return employeeId; }
+        public void setEmployeeId(Long employeeId) { this.employeeId = employeeId; }
+        public String getEmployeeName() { return employeeName; }
+        public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
+        public Long getOrganizationId() { return organizationId; }
+        public void setOrganizationId(Long organizationId) { this.organizationId = organizationId; }
+        public String getOrganizationName() { return organizationName; }
+        public void setOrganizationName(String organizationName) { this.organizationName = organizationName; }
+        public Long getBatchId() { return batchId; }
+        public void setBatchId(Long batchId) { this.batchId = batchId; }
+        public Long getLineId() { return lineId; }
+        public void setLineId(Long lineId) { this.lineId = lineId; }
+        public LocalDate getSalaryMonth() { return salaryMonth; }
+        public void setSalaryMonth(LocalDate salaryMonth) { this.salaryMonth = salaryMonth; }
+        public java.math.BigDecimal getBasic() { return basic; }
+        public void setBasic(java.math.BigDecimal basic) { this.basic = basic; }
+        public java.math.BigDecimal getHra() { return hra; }
+        public void setHra(java.math.BigDecimal hra) { this.hra = hra; }
+        public java.math.BigDecimal getAllowances() { return allowances; }
+        public void setAllowances(java.math.BigDecimal allowances) { this.allowances = allowances; }
+        public java.math.BigDecimal getDeductions() { return deductions; }
+        public void setDeductions(java.math.BigDecimal deductions) { this.deductions = deductions; }
+        public java.math.BigDecimal getNetAmount() { return netAmount; }
+        public void setNetAmount(java.math.BigDecimal netAmount) { this.netAmount = netAmount; }
+        public String getTransactionRef() { return transactionRef; }
+        public void setTransactionRef(String transactionRef) { this.transactionRef = transactionRef; }
+        public java.time.Instant getGeneratedAt() { return generatedAt; }
+        public void setGeneratedAt(java.time.Instant generatedAt) { this.generatedAt = generatedAt; }
     }
 }
-
