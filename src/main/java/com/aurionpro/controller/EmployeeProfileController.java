@@ -1,6 +1,7 @@
 package com.aurionpro.controller;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,8 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aurionpro.dtos.ChangePasswordRequest;
 import com.aurionpro.dtos.EmployeeProfileDTO;
 import com.aurionpro.dtos.UpdateEmployeeProfileRequest;
+import com.aurionpro.entity.BankAccount;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.User;
+import com.aurionpro.repository.BankAccountRepository;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.UserRepository;
 import com.aurionpro.security.CustomUserDetails;
@@ -41,6 +44,7 @@ public class EmployeeProfileController {
     private final EmployeeService employeeService;
     private final DocumentService documentService;
     private final BankAccountService bankAccountService;
+    private final BankAccountRepository bankAccountRepository;
 
     // ✅ View own profile
     @GetMapping("/employee/self")
@@ -52,27 +56,49 @@ public class EmployeeProfileController {
         Employee employee = employeeRepository.findByUserAccountId(user.getId())
             .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Fetch statuses from your Document and BankAccount entities or service
-        String kycStatus = documentService.getStatusByEmployee(employee);
-        String bankStatus = bankAccountService.getStatusByEmployee(employee);
+        // Fetch KYC Document Status
+        String kycDocumentStatus = documentService.getStatusByEmployee(employee);
+        
+        // Fetch Bank Account Details
+        List<BankAccount> bankAccounts = bankAccountRepository.findAll().stream()
+                .filter(ba -> ba.getEmployee() != null && ba.getEmployee().getId().equals(employee.getId()))
+                .toList();
+        
+        String bankKycStatus = null;
+        String bankAccountNumber = null;
+        String bankName = null;
+        
+        if (!bankAccounts.isEmpty()) {
+            BankAccount bankAccount = bankAccounts.get(0);
+            bankKycStatus = bankAccount.getKycStatus().name();
+            bankAccountNumber = bankAccount.getAccountNumber();
+            bankName = bankAccount.getBankName();
+        }
 
         EmployeeProfileDTO dto = EmployeeProfileDTO.builder()
             .id(employee.getId())
             .organizationId(employee.getOrganization() != null ? employee.getOrganization().getId() : null)
+            .organizationName(employee.getOrganization() != null ? employee.getOrganization().getName() : null)
             .fullName(employee.getFullName())
             .email(employee.getEmail())
             .employeeCode(employee.getEmployeeCode())
             .designation(employee.getDesignation())
             .department(employee.getDepartment())
-            .dateOfJoining(employee.getDateOfJoining() != null ? employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE) : null)
+            .dateOfJoining(employee.getDateOfJoining() != null 
+            ? employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE) 
+            : null)
+  // ✅ No formatting needed if DTO has LocalDate
             .salaryTemplateId(employee.getSalaryTemplate() != null ? employee.getSalaryTemplate().getId() : null)
             .salaryTemplateName(employee.getSalaryTemplate() != null ? employee.getSalaryTemplate().getTemplateName() : null)
-            .kycDocumentStatus(kycStatus)
-            .bankAccountStatus(bankStatus)
+            .kycDocumentStatus(kycDocumentStatus)
+            .bankKycStatus(bankKycStatus)
+            .bankAccountNumber(bankAccountNumber)
+            .bankName(bankName)
             .build();
 
         return ResponseEntity.ok(dto);
     }
+
 
 
     // ✅ Update profile (only own)

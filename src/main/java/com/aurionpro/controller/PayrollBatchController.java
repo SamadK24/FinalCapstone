@@ -1,7 +1,12 @@
 package com.aurionpro.controller;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +26,7 @@ import com.aurionpro.service.PayrollBatchService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 
 @RestController
 @RequestMapping("/api")
@@ -48,6 +54,37 @@ public class PayrollBatchController {
     public ResponseEntity<Page<DisbursalBatchResponseDTO>> listPendingBatches(Pageable pageable) {
         return ResponseEntity.ok(payrollBatchService.listPendingBatchesForBankAdmin(pageable));
     }
+    
+    @PreAuthorize("hasRole('BANK_ADMIN')")
+    @PostMapping("/bank-admin/payroll/batches/{batchId}/execute")
+    public ResponseEntity<Map<String, Object>> executeBatch(@PathVariable Long batchId) {
+        try {
+            PayrollBatchService.ExecutionSummary summary = payrollBatchService.executeApprovedBatch(batchId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Batch execution completed");
+            response.put("summary", summary);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to execute batch: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PreAuthorize("hasRole('BANK_ADMIN')")
+    @GetMapping("/bank-admin/payroll/batches/approved")
+    public ResponseEntity<List<DisbursalBatchResponseDTO>> listApprovedBatches() {
+        List<DisbursalBatchResponseDTO> batches = payrollBatchService.listApprovedBatches();
+        return ResponseEntity.ok(batches);
+    }
+
+    
+    
 
 
 

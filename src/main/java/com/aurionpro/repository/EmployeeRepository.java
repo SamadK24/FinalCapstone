@@ -5,15 +5,10 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.aurionpro.entity.Employee;
-import com.aurionpro.entity.SalaryTemplate;
-
-import jakarta.transaction.Transactional;
+import com.aurionpro.entity.User;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
@@ -30,8 +25,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     boolean existsByEmployeeCodeAndOrganization_IdAndStatus(String employeeCode, Long orgId, Employee.Status status);
 
-    // Added from main branch
     List<Employee> findByOrganizationId(Long orgId);
-    
-    
+
+    Optional<Employee> findByUserAccount(User user);
 }

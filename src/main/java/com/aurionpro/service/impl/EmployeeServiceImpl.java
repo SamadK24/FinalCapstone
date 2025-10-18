@@ -1,6 +1,7 @@
 package com.aurionpro.service.impl;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,9 +15,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aurionpro.dtos.BankAccountDTO;
 import com.aurionpro.dtos.EmployeeCreationDTO;
 import com.aurionpro.dtos.EmployeeProfileDTO;
 import com.aurionpro.dtos.EmployeeResponseDTO;
+import com.aurionpro.dtos.SalaryTemplateDTO;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Employee.Status;
 import com.aurionpro.entity.Organization;
@@ -47,9 +50,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final ModelMapper modelMapper;
+
     @Autowired
     private SalaryTemplateRepository salaryTemplateRepository;
-    
 
     @Override
     @Transactional
@@ -61,18 +64,20 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new OrganizationNotApprovedException("Organization is not approved by Bank Admin yet");
         }
 
-        if (userRepository.existsByUsername(dto.getEmployeeCode()))
+        if (userRepository.existsByUsername(dto.getEmployeeCode())) {
             throw new RuntimeException("Employee username (code) already exists");
+        }
 
-        if (userRepository.existsByEmail(dto.getEmail()))
+        if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Employee email already exists");
+        }
 
         LocalDate joiningDate = (dto.getDateOfJoining() == null || dto.getDateOfJoining().isEmpty())
                 ? LocalDate.now()
                 : LocalDate.parse(dto.getDateOfJoining());
 
-        // generate temp password
-        String tempPassword = "defaultPassword123"; // you can generate random secure password here
+        // generate temporary password
+        String tempPassword = "defaultPassword123"; // replace with random secure password logic if needed
 
         User employeeUser = new User();
         employeeUser.setUsername(dto.getEmployeeCode());
@@ -99,7 +104,6 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         employeeRepository.save(employee);
 
-        // send welcome email
         emailService.sendEmployeeWelcomeWithCredentials(
                 employee.getEmail(),
                 employee.getFullName(),
@@ -114,13 +118,48 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         return employees.stream().map(employee -> {
             EmployeeProfileDTO dto = modelMapper.map(employee, EmployeeProfileDTO.class);
+
+            // Map salary template
             if (employee.getSalaryTemplate() != null) {
+                SalaryTemplateDTO templateDTO = new SalaryTemplateDTO();
+                templateDTO.setId(employee.getSalaryTemplate().getId());
+                templateDTO.setTemplateName(employee.getSalaryTemplate().getTemplateName());
+                templateDTO.setBasicSalary(employee.getSalaryTemplate().getBasicSalary());
+                templateDTO.setHra(employee.getSalaryTemplate().getHra());
+                templateDTO.setAllowances(employee.getSalaryTemplate().getAllowances());
+                templateDTO.setDeductions(employee.getSalaryTemplate().getDeductions());
+                dto.setSalaryTemplate(templateDTO);
+
                 dto.setSalaryTemplateId(employee.getSalaryTemplate().getId());
                 dto.setSalaryTemplateName(employee.getSalaryTemplate().getTemplateName());
             }
+
+            // Map date of joining
             if (employee.getDateOfJoining() != null) {
-                dto.setDateOfJoining(employee.getDateOfJoining().toString());
+                dto.setDateOfJoining(employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE));
             }
+
+            // Map employee status
+            if (employee.getStatus() != null) {
+                dto.setStatus(employee.getStatus().toString());
+            }
+
+            // Map bank accounts safely
+            if (employee.getBankAccounts() != null && !employee.getBankAccounts().isEmpty()) {
+                List<BankAccountDTO> bankAccountDTOs = employee.getBankAccounts().stream()
+                        .map(ba -> {
+                            BankAccountDTO baDto = new BankAccountDTO();
+                            baDto.setId(ba.getId());
+                            baDto.setAccountNumber(ba.getAccountNumber());
+                            baDto.setBankName(ba.getBankName());
+                            baDto.setIfscCode(ba.getIfscCode());
+                            baDto.setKycStatus(ba.getKycStatus() != null ? ba.getKycStatus().toString() : null);
+                            baDto.setBalance(ba.getBalance());
+                            return baDto;
+                        }).collect(Collectors.toList());
+                dto.setBankAccounts(bankAccountDTOs);
+            }
+
             return dto;
         }).collect(Collectors.toList());
     }
@@ -146,6 +185,4 @@ public class EmployeeServiceImpl implements EmployeeService {
         Page<Employee> employees = employeeRepository.findAll(spec, pageable);
         return employees.map(e -> modelMapper.map(e, EmployeeResponseDTO.class));
     }
-
 }
-

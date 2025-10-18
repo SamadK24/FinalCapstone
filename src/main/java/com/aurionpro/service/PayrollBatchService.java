@@ -1,5 +1,6 @@
 package com.aurionpro.service;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -13,10 +14,11 @@ public interface PayrollBatchService {
 
     Page<DisbursalBatchResponseDTO> listPendingBatchesForBankAdmin(Pageable pageable);
 
-
     void reviewBatch(DisbursalBatchApprovalDTO dto);
 
     ExecutionSummary executeApprovedBatch(Long batchId);
 
     record ExecutionSummary(int totalLines, int paidLines, int skippedLines, String batchStatus) {}
+
+    List<DisbursalBatchResponseDTO> listApprovedBatches();
 }

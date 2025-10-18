@@ -23,7 +23,7 @@ public class PayrollExecutionController {
 
 
     @PreAuthorize("hasRole('BANK_ADMIN')")
-    @PostMapping("/bank-admin/payroll/batches/{batchId}/execute")
+    @PostMapping("/bank-admin/payroll/batches/{batchId}/execute-summary")
     public ResponseEntity<PayrollBatchService.ExecutionSummary> executeBatch(
            @PathVariable Long batchId) {
         PayrollBatchService.ExecutionSummary summary = payrollBatchService.executeApprovedBatch(batchId);

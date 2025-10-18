@@ -16,29 +16,34 @@ import jakarta.persistence.LockModeType;
 
 @Repository
 public interface BankAccountRepository extends JpaRepository<BankAccount, Long> {
+
     List<BankAccount> findByOrganizationId(Long organizationId);
+
     List<BankAccount> findByEmployeeId(Long employeeId);
+
     List<BankAccount> findByEmployee(Employee employee);
-    
+
+    @Query("SELECT b FROM BankAccount b WHERE b.employee.organization.id = :orgId")
+    List<BankAccount> findByEmployeeOrganizationId(@Param("orgId") Long orgId);
+
     @Query("SELECT b FROM BankAccount b WHERE b.organization.id = :orgId AND b.verified = true AND b.kycStatus = com.aurionpro.entity.BankAccount.KYCDocumentVerificationStatus.VERIFIED")
     Optional<BankAccount> findFirstVerifiedOrgAccount(@Param("orgId") Long orgId);
+
+    Optional<BankAccount> findFirstByOrganizationIdAndKycStatus(Long organizationId, BankAccount.KYCDocumentVerificationStatus kycStatus);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM BankAccount b WHERE b.id = :id")
     Optional<BankAccount> findByIdForUpdate(@Param("id") Long id);
-    
-    // Duplicate detection
+
     @Query("SELECT COUNT(b) > 0 FROM BankAccount b WHERE b.accountNumber = :accountNumber AND b.ifscCode = :ifscCode AND (:employeeId IS NULL OR b.employee.id != :employeeId) AND (:orgId IS NULL OR b.organization.id != :orgId)")
-    boolean existsDuplicateAccount(@Param("accountNumber") String accountNumber, 
+    boolean existsDuplicateAccount(@Param("accountNumber") String accountNumber,
                                    @Param("ifscCode") String ifscCode,
                                    @Param("employeeId") Long employeeId,
                                    @Param("orgId") Long orgId);
-    
-    // Get primary account for employee
+
     @Query("SELECT b FROM BankAccount b WHERE b.employee.id = :employeeId AND b.isPrimary = true AND b.verified = true")
     Optional<BankAccount> findPrimaryAccountByEmployeeId(@Param("employeeId") Long employeeId);
-    
-    // Get latest account by creation time
+
     @Query("SELECT b FROM BankAccount b WHERE b.employee = :employee ORDER BY b.createdAt DESC")
     List<BankAccount> findByEmployeeOrderByCreatedAtDesc(@Param("employee") Employee employee);
 }

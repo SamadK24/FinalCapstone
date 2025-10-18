@@ -2,6 +2,7 @@ package com.aurionpro.controller;
 
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ import com.aurionpro.service.OrganizationService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 
 @RestController
 @RequestMapping("/api/documents")
@@ -144,10 +146,11 @@ public class DocumentController {
 
     @PreAuthorize("hasRole('BANK_ADMIN') or hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/{id}/review")
-    public ResponseEntity<String> reviewDocument(@PathVariable Long id,
+    public ResponseEntity<Map<String, String>> reviewDocument(@PathVariable Long id,
                                                  @Valid @RequestBody DocumentReviewDTO dto,
                                                  @AuthenticationPrincipal UserDetails currentUser) {
         documentService.verifyDocument(id, dto.isApprove(), dto.getRejectionReason(), currentUser.getUsername());
-        return ResponseEntity.ok("Document reviewed successfully");
+        return ResponseEntity.ok(Map.of("message", "Document reviewed successfully"));
     }
+
 }
