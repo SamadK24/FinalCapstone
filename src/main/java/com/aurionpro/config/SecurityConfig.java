@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-@EnableMethodSecurity(prePostEnabled = true) // ensure @PreAuthorize is enforced
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
@@ -45,45 +45,65 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        http
+            // CORS before auth filters
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
-                // Public auth
+                // Allow preflight requests through without auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Public auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/validate-reset-token").permitAll()
+                
+                .requestMatchers("/api/bank-admin/payroll/batches/**").hasRole("BANK_ADMIN")
+                .requestMatchers("/api/bank-admin/payroll/disbursements/**").hasRole("BANK_ADMIN")
                 
                 // Organization APIs
-                .requestMatchers("/api/organization/**").hasAnyRole("ORGANIZATION_ADMIN", "BANK_ADMIN", "EMPLOYEE")
-                
+                .requestMatchers("/api/organization/**")
+                    .hasAnyRole("ORGANIZATION_ADMIN", "BANK_ADMIN", "EMPLOYEE")
+                    
+                    .requestMatchers("/api/bank-accounts/employee/**").hasRole("EMPLOYEE")
+
                 // Bank admin area
                 .requestMatchers("/api/bank-admin/**").hasRole("BANK_ADMIN")
                 .requestMatchers("/api/bank-admin/salary-disbursal-requests/**").hasRole("BANK_ADMIN")
-                
+
                 // Bank accounts access
-                .requestMatchers("/api/bank-accounts/**").hasAnyRole("ORGANIZATION_ADMIN", "EMPLOYEE", "BANK_ADMIN")
-                
+                .requestMatchers("/api/bank-accounts/**")
+                    .hasAnyRole("ORGANIZATION_ADMIN", "EMPLOYEE", "BANK_ADMIN")
+
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
-    
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS", "PUT", "DELETE"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
+        CorsConfiguration cors = new CorsConfiguration();
+        // With credentials you must specify the exact origin (no wildcard)
+        cors.setAllowedOrigins(List.of("http://localhost:4200")); // FE dev origin [web:152]
+        // Include OPTIONS and PATCH to satisfy preflights for secured endpoints [web:153]
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        // Explicit headers so Authorization is accepted in preflight [web:143]
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+        cors.setExposedHeaders(List.of("Authorization"));
+        cors.setAllowCredentials(true);
+        cors.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/**", cors);
         return source;
     }
-
-
 
     @Bean
     public CaptchaValidationFilter captchaValidationFilter() {

@@ -1,6 +1,7 @@
 package com.aurionpro.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
@@ -9,7 +10,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dtos.DocumentResponseDTO;
@@ -79,10 +87,11 @@ public class DocumentController {
 
     @PreAuthorize("hasRole('BANK_ADMIN') or hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/{id}/review")
-    public ResponseEntity<String> reviewDocument(@PathVariable Long id,
+    public ResponseEntity<Map<String, String>> reviewDocument(@PathVariable Long id,
                                                  @Valid @RequestBody DocumentReviewDTO dto,
                                                  @AuthenticationPrincipal UserDetails currentUser) {
         documentService.verifyDocument(id, dto.isApprove(), dto.getRejectionReason(), currentUser.getUsername());
-        return ResponseEntity.ok("Document reviewed successfully");
+        return ResponseEntity.ok(Map.of("message", "Document reviewed successfully"));
     }
+
 }

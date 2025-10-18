@@ -1,5 +1,7 @@
 package com.aurionpro.service.impl;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -30,6 +32,10 @@ public class BankAccountServiceImpl implements BankAccountService {
     public BankAccount addOrUpdateEmployeeBankAccount(Long employeeId, BankAccount bankAccount) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        
+        if (bankAccount.getBalance() == null) {
+            bankAccount.setBalance(BigDecimal.ZERO);
+        }
 
         bankAccount.setEmployee(employee);
         bankAccount.setVerified(false);
@@ -42,6 +48,10 @@ public class BankAccountServiceImpl implements BankAccountService {
     public BankAccount addOrUpdateOrganizationBankAccount(Long orgId, BankAccount bankAccount, String username) {
         Organization organization = organizationRepository.findById(orgId)
             .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        
+        if (bankAccount.getAccountHolderName() == null || bankAccount.getAccountHolderName().isEmpty()) {
+            bankAccount.setAccountHolderName(organization.getName());  // Use organization name
+        }
 
         if (!organization.getAdminUser().getUsername().equals(username)) {
             throw new SecurityException("Unauthorized access to organization resource");
@@ -50,7 +60,9 @@ public class BankAccountServiceImpl implements BankAccountService {
         if (organization.getStatus() != Organization.Status.APPROVED) {
             throw new IllegalStateException("Organization is not approved yet");
         }
-
+        if (bankAccount.getBalance() == null) {
+            bankAccount.setBalance(BigDecimal.ZERO);
+        }
         bankAccount.setOrganization(organization);
         bankAccount.setVerified(false);
         bankAccount.setKycStatus(BankAccount.KYCDocumentVerificationStatus.PENDING);
@@ -140,6 +152,28 @@ public class BankAccountServiceImpl implements BankAccountService {
                 ? latestAccount.getKycStatus().name()
                 : null;
     }
+
+   
+    @Override
+    public List<BankAccount> getEmployeeBankAccountsForOrganization(Long orgId) {
+        // Get all employees for this organization
+        List<Employee> employees = employeeRepository.findByOrganizationId(orgId);
+        
+        // Get bank accounts for all these employees
+        List<BankAccount> allAccounts = new ArrayList<>();
+        for (Employee emp : employees) {
+            allAccounts.addAll(bankAccountRepository.findByEmployeeId(emp.getId()));
+        }
+        
+        return allAccounts;
+    }
+
+
+    
+    
+  
+
+    
 
 
 }

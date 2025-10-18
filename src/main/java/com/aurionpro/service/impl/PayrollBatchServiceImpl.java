@@ -2,12 +2,13 @@ package com.aurionpro.service.impl;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,7 +75,7 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
 
         if (employees.isEmpty()) throw new IllegalArgumentException("No eligible employees for batch");
 
-        HashSet<DisbursalLine> lines = new HashSet<>();
+        List<DisbursalLine> lines = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
         for (Employee e : employees) {
             BigDecimal amt = computeNet(e);
@@ -162,8 +163,10 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
         }
 
         // Approval path: debit org account and mark approved
-        BankAccount orgAccount = bankAccountRepository.findFirstVerifiedOrgAccount(org.getId())
-                .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
+        BankAccount orgAccount = bankAccountRepository
+        	    .findFirstByOrganizationIdAndKycStatus(org.getId(), BankAccount.KYCDocumentVerificationStatus.VERIFIED)
+        	    .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
+
 
         BankAccount locked = bankAccountRepository.findByIdForUpdate(orgAccount.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payroll account not found"));
@@ -222,22 +225,27 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
 
         List<DisbursalLine> lines = lineRepository.findByBatchId(batchId);
 
-        int total = 0, paid = 0, skipped = 0;
+        int total = lines.size();  // ✅ Fix: Count total upfront
+        int paid = 0;
+        int skipped = 0;
 
         for (DisbursalLine line : lines) {
-            total++;
+            // ✅ Check if already processed completely
             boolean alreadyPaid = line.getStatus() == DisbursalLine.Status.PAID;
             boolean payslipExists = payslipRepository.findByLineId(line.getId()).isPresent();
+            
             if (alreadyPaid && payslipExists) {
                 skipped++;
-                continue;
+                continue;  // ✅ Skip already processed lines
             }
 
+            // ✅ Process the payment
             Employee e = line.getEmployee();
             ComponentBreakdown comp = computeComponents(e);
 
             String txRef = java.util.UUID.randomUUID().toString();
 
+            // ✅ Mark as paid and save transaction reference
             if (!alreadyPaid) {
                 line.setStatus(DisbursalLine.Status.PAID);
                 line.setTransactionRef(txRef);
@@ -250,6 +258,7 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
                 txRef = line.getTransactionRef();
             }
 
+            // ✅ Generate payslip if not exists
             if (!payslipExists) {
                 Payslip slip = Payslip.builder()
                         .employee(e)
@@ -267,8 +276,9 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
                 payslipRepository.save(slip);
             }
 
-            paid++;
+            paid++;  // ✅ Increment paid counter
 
+            // ✅ Send email notification
             if (e.getEmail() != null) {
                 try {
                     Payslip created = payslipRepository.findByLineId(line.getId()).orElse(null);
@@ -288,14 +298,25 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
             }
         }
 
+        // ✅ Update batch status based on results
         boolean allPaid = lineRepository.findByBatchId(batchId).stream()
                 .allMatch(l -> l.getStatus() == DisbursalLine.Status.PAID);
+        
         if (allPaid) {
             batch.setStatus(DisbursalBatch.Status.COMPLETED);
-            batchRepository.save(batch);
+                 batchRepository.save(batch);
         }
 
         return new ExecutionSummary(total, paid, skipped, batch.getStatus().name());
+    }
+
+    // ✅ Helper method to get current user
+    private String getCurrentUsername() {
+        try {
+            return SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            return "SYSTEM";
+        }
     }
 
     // ------------------ HELPERS ------------------
@@ -348,12 +369,24 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
         return DisbursalBatchResponseDTO.builder()
                 .batchId(b.getId())
                 .organizationId(b.getOrganization().getId())
+                .organizationName(b.getOrganization().getName())  // ✅ ADD THIS
                 .salaryMonth(b.getSalaryMonth())
                 .totalAmount(b.getTotalAmount())
                 .status(b.getStatus().name())
+                .createdAt(b.getCreatedAt())  // ✅ ADD THIS
+                .createdBy(b.getCreatedBy())  // ✅ ADD THIS
                 .lines(lineDtos)
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DisbursalBatchResponseDTO> listApprovedBatches() {
+        return batchRepository.findByStatus(DisbursalBatch.Status.APPROVED).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
 
     @Getter
     @AllArgsConstructor

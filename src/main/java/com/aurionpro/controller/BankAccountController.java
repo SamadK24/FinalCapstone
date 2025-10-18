@@ -1,6 +1,9 @@
 package com.aurionpro.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.aurionpro.dtos.BankAccountDTO;
 import com.aurionpro.entity.BankAccount;
+import com.aurionpro.repository.BankAccountRepository;
 import com.aurionpro.service.BankAccountService;
 
 import jakarta.validation.Valid;
@@ -31,8 +35,9 @@ public class BankAccountController {
 
     private final BankAccountService bankAccountService;
     private final ModelMapper modelMapper;
-
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') or hasRole('EMPLOYEE')")
+    private final BankAccountRepository bankAccountRepository;
+    
+    @PreAuthorize("hasRole('EMPLOYEE')")
     @PostMapping("/employee/{employeeId}")
     public ResponseEntity<BankAccountDTO> addEmployeeBankAccount(@PathVariable Long employeeId,
                                                                 @Valid @RequestBody BankAccountDTO bankAccountDTO) {
@@ -70,17 +75,20 @@ public class BankAccountController {
         return ResponseEntity.ok("Organization bank account KYC status updated successfully");
     }
 
-    // Employee bank account KYC approval — accessible only by Organization Admin of that org
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') and @securityService.isOrgAdminForEmployeeBankAccount(#orgId, #bankAccountId, authentication.name)")
+    // Employee bank account KYC approval — accessible only by Organization Admin of that org ----changes by durgesh
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
     @PostMapping("/organization/{orgId}/employee-bank-accounts/{bankAccountId}/kyc-approval")
-    public ResponseEntity<String> approveOrRejectEmployeeBankAccountKyc(@PathVariable Long orgId,
-                                                                        @PathVariable Long bankAccountId,
-                                                                        @RequestParam boolean approve,
-                                                                        @RequestParam(required = false) String rejectionReason,
-                                                                        @AuthenticationPrincipal UserDetails currentUser) {
+    public ResponseEntity<Map<String, String>> approveOrRejectEmployeeBankAccountKyc(
+            @PathVariable Long orgId,
+            @PathVariable Long bankAccountId,
+            @RequestParam boolean approve,
+            @RequestParam(required = false) String rejectionReason,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        
         bankAccountService.approveOrRejectEmployeeKyc(orgId, bankAccountId, approve, rejectionReason, currentUser.getUsername());
-        return ResponseEntity.ok("Employee bank account KYC status updated successfully");
+        return ResponseEntity.ok(Map.of("message", "Employee bank account KYC status updated successfully"));
     }
+
 
 
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
@@ -92,4 +100,47 @@ public class BankAccountController {
                 .toList();
         return ResponseEntity.ok(dtoList);
     }
+    
+    //return all bank account of employees for kyc -durgesh changes 
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    @GetMapping("/organization/{orgId}/employees")
+    public ResponseEntity<List<BankAccountDTO>> listEmployeeBankAccountsForOrganization(@PathVariable Long orgId) {
+        List<BankAccount> accounts = bankAccountService.getEmployeeBankAccountsForOrganization(orgId);
+        List<BankAccountDTO> dtoList = accounts.stream()
+                .map(acc -> modelMapper.map(acc, BankAccountDTO.class))
+                .toList();
+        return ResponseEntity.ok(dtoList);
+    }
+
+ // New endpoint for Bank Admin to get pending organization bank accounts --durgesh changes
+    @PreAuthorize("hasRole('BANK_ADMIN')")
+    @GetMapping("/bank-admin/organization-bank-accounts/pending")
+    public ResponseEntity<List<Map<String, Object>>> listPendingOrgBankAccounts() {
+        List<BankAccount> accounts = bankAccountRepository.findAll().stream()
+                .filter(ba -> ba.getOrganization() != null && 
+                             ba.getKycStatus() == BankAccount.KYCDocumentVerificationStatus.PENDING)
+                .collect(Collectors.toList());
+        
+        List<Map<String, Object>> result = accounts.stream()
+                .map(acc -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", acc.getId());
+                    map.put("accountHolderName", acc.getAccountHolderName());
+                    map.put("accountNumber", acc.getAccountNumber());
+                    map.put("ifscCode", acc.getIfscCode());
+                    map.put("bankName", acc.getBankName());
+                    map.put("verified", acc.isVerified());
+                    map.put("kycStatus", acc.getKycStatus().name());
+                    if (acc.getOrganization() != null) {
+                        map.put("organizationId", acc.getOrganization().getId());
+                        map.put("organizationName", acc.getOrganization().getName());
+                    }
+                    return map;
+                })
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(result);
+    }
+
+
 }

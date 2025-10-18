@@ -21,6 +21,7 @@ public interface BankAccountService {
 
     // ✅ Get KYC status by employee entity
     String getStatusByEmployee(Employee employee);
+    List<BankAccount> getEmployeeBankAccountsForOrganization(Long orgId);
     
 
 }

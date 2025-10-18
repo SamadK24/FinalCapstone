@@ -1,5 +1,13 @@
 package com.aurionpro.service.impl;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.aurionpro.dtos.SalaryDisbursalApprovalDTO;
 import com.aurionpro.dtos.SalaryDisbursalRequestDTO;
 import com.aurionpro.dtos.SalaryDisbursalResponseDTO;
@@ -12,16 +20,10 @@ import com.aurionpro.repository.BankAccountRepository;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.OrganizationRepository;
 import com.aurionpro.repository.SalaryDisbursalRequestRepository;
-import com.aurionpro.service.SalaryDisbursalService;
 import com.aurionpro.service.NotificationService;
+import com.aurionpro.service.SalaryDisbursalService;
 
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -125,16 +127,19 @@ public class SalaryDisbursalServiceImpl implements SalaryDisbursalService {
     }
 
     private void executeApproval(SalaryDisbursalRequest request) {
-        Long orgId = request.getOrganization().getId();
+        Long orgId = request.getOrganization().getId();  // ✅ Fixed typo
 
-        BankAccount orgAccount = bankAccountRepository.findFirstVerifiedOrgAccount(orgId)
-                .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
+     // ✅ CORRECT - Use the actual method name from your repository
+        BankAccount orgAccount = bankAccountRepository
+            .findFirstByOrganizationIdAndKycStatus(orgId, BankAccount.KYCDocumentVerificationStatus.VERIFIED)
+            .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
+
 
         BankAccount locked = bankAccountRepository.findByIdForUpdate(orgAccount.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payroll account not found"));
 
-        java.math.BigDecimal available = new java.math.BigDecimal(locked.getBalance().toString());
-        java.math.BigDecimal required = java.math.BigDecimal.valueOf(request.getAmount());
+        BigDecimal available = locked.getBalance();  // ✅ No need for toString()
+        BigDecimal required = BigDecimal.valueOf(request.getAmount());
 
         if (available.compareTo(required) < 0) {
             request.setStatus(SalaryDisbursalRequest.Status.REJECTED);
@@ -154,6 +159,7 @@ public class SalaryDisbursalServiceImpl implements SalaryDisbursalService {
         demoExecutePayment(request);
         notificationService.notifyDisbursalApproval(request.getEmployee().getId(), request.getAmount());
     }
+
 
     private void demoExecutePayment(SalaryDisbursalRequest request) {
         System.out.println("Transferring " + request.getAmount() + " from org " + request.getOrganization().getName() +

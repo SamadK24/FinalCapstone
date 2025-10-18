@@ -1,6 +1,7 @@
 package com.aurionpro.service.impl;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -10,8 +11,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aurionpro.dtos.BankAccountDTO;
 import com.aurionpro.dtos.EmployeeCreationDTO;
 import com.aurionpro.dtos.EmployeeProfileDTO;
+import com.aurionpro.dtos.SalaryTemplateDTO;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Employee.Status;
 import com.aurionpro.entity.Organization;
@@ -24,8 +27,8 @@ import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.OrganizationRepository;
 import com.aurionpro.repository.RoleRepository;
 import com.aurionpro.repository.UserRepository;
-import com.aurionpro.service.EmployeeService;
 import com.aurionpro.service.EmailService;
+import com.aurionpro.service.EmployeeService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -97,23 +100,70 @@ public class EmployeeServiceImpl implements EmployeeService {
                 tempPassword
         );
     }
-
+//chnages by durgesh
     @Override
     public List<EmployeeProfileDTO> getEmployeesByOrganization(Long orgId) {
         List<Employee> employees = employeeRepository.findByOrganizationId(orgId);
 
         return employees.stream().map(employee -> {
             EmployeeProfileDTO dto = modelMapper.map(employee, EmployeeProfileDTO.class);
+            
+            // Map salary template
             if (employee.getSalaryTemplate() != null) {
                 dto.setSalaryTemplateId(employee.getSalaryTemplate().getId());
                 dto.setSalaryTemplateName(employee.getSalaryTemplate().getTemplateName());
+                
+                // Map full salary template for frontend calculations
+                SalaryTemplateDTO templateDTO = new SalaryTemplateDTO();
+                templateDTO.setId(employee.getSalaryTemplate().getId());
+                templateDTO.setTemplateName(employee.getSalaryTemplate().getTemplateName());
+                templateDTO.setBasicSalary(employee.getSalaryTemplate().getBasicSalary());
+                templateDTO.setHra(employee.getSalaryTemplate().getHra());
+                templateDTO.setAllowances(employee.getSalaryTemplate().getAllowances());
+                templateDTO.setDeductions(employee.getSalaryTemplate().getDeductions());
+                dto.setSalaryTemplate(templateDTO);
             }
+            
+            // Map date of joining
+         // ✅ CORRECT
             if (employee.getDateOfJoining() != null) {
-                dto.setDateOfJoining(employee.getDateOfJoining().toString());
+                dto.setDateOfJoining(employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE));
             }
+
+            
+            // Map employee status
+            if (employee.getStatus() != null) {
+                dto.setStatus(employee.getStatus().toString());
+            }
+            
+            // ✅ Map bank accounts - SAFE VERSION
+            if (employee.getBankAccounts() != null && !employee.getBankAccounts().isEmpty()) {
+                List<BankAccountDTO> bankAccountDTOs = employee.getBankAccounts().stream()
+                    .map(ba -> {
+                        BankAccountDTO baDto = new BankAccountDTO();
+                        baDto.setId(ba.getId());
+                        baDto.setAccountNumber(ba.getAccountNumber());
+                        baDto.setBankName(ba.getBankName());
+                        baDto.setIfscCode(ba.getIfscCode());
+                        
+                        if (ba.getKycStatus() != null) {
+                            baDto.setKycStatus(ba.getKycStatus().toString());
+                        }
+                        
+                        if (ba.getBalance() != null) {
+                            baDto.setBalance(ba.getBalance());
+                        }
+                        
+                        return baDto;
+                    })
+                    .collect(Collectors.toList());
+                dto.setBankAccounts(bankAccountDTOs);
+            }
+            
             return dto;
         }).collect(Collectors.toList());
     }
+
 
     @Override
     public Employee getEmployeeById(Long employeeId) {

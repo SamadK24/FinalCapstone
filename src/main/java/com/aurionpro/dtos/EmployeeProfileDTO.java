@@ -1,10 +1,8 @@
 package com.aurionpro.dtos;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import java.math.BigDecimal;
+import java.util.List;
+import lombok.*;
 
 @Getter
 @Setter
@@ -12,18 +10,32 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class EmployeeProfileDTO {
-
-	private Long id; 
-	private Long organizationId;
+    // Basic Info
+    private Long id;
+    private Long organizationId;
+    private String organizationName;
     private String fullName;
     private String email;
     private String employeeCode;
     private String designation;
     private String department;
-    private String dateOfJoining;
-    private Long salaryTemplateId;        // Add this
+    private String dateOfJoining;  // ✅ String type
+    
+    // Salary Info
+    private BigDecimal currentSalary;
+    private Long salaryTemplateId;
     private String salaryTemplateName;
-    private String kycDocumentStatus;  // e.g., "PENDING", "APPROVED", "REJECTED"
-    private String bankAccountStatus;  // e.g., "PENDING", "APPROVED", "REJECTED"
-
+    private SalaryTemplateDTO salaryTemplate;  // ✅ Full template details
+    
+    // KYC Document Status
+    private String kycDocumentStatus;  // ✅ ADD THIS
+    
+    // Bank Account Info
+    private String bankKycStatus;      // ✅ ADD THIS
+    private String bankAccountNumber;   // ✅ ADD THIS
+    private String bankName;           // ✅ ADD THIS
+    private List<BankAccountDTO> bankAccounts;  // ✅ Array of bank accounts
+    
+    // Employee Status
+    private String status;  // ✅ ACTIVE, INACTIVE, etc.
 }

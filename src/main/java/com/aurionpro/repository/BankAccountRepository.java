@@ -19,8 +19,8 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
     List<BankAccount> findByOrganizationId(Long organizationId);
     List<BankAccount> findByEmployeeId(Long employeeId);
     
-    @Query("select b from BankAccount b where b.organization.id = :orgId and b.verified = true and b.kycStatus = com.aurionpro.entity.BankAccount.KYCDocumentVerificationStatus.VERIFIED")
-    Optional<BankAccount> findFirstVerifiedOrgAccount(@Param("orgId") Long orgId); // pick the payroll account policy
+ // ✅ Alternative - Spring Data will automatically limit to first result
+    Optional<BankAccount> findFirstByOrganizationIdAndKycStatus(Long organizationId, BankAccount.KYCDocumentVerificationStatus kycStatus);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BankAccount b where b.id = :id")
@@ -28,4 +28,9 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
     
     List<BankAccount> findByEmployee(Employee employee);
     
+    @Query("SELECT b FROM BankAccount b WHERE b.employee.organization.id = :orgId")
+    List<BankAccount> findByEmployeeOrganizationId(@Param("orgId") Long orgId);
+
+    
+
 }

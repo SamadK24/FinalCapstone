@@ -34,6 +34,7 @@ public class BankAccount {
     private boolean verified;
     
     // New: money-safe balance
+    @Builder.Default
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
 

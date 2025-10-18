@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.aurionpro.entity.Employee;
+import com.aurionpro.entity.User;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
@@ -26,4 +27,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     // Added from main branch
     List<Employee> findByOrganizationId(Long orgId);
+    Optional<Employee> findByUserAccount(User user);
+   
 }
