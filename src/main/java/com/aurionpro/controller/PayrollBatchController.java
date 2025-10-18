@@ -3,8 +3,9 @@ package com.aurionpro.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,35 +22,37 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aurionpro.dtos.DisbursalBatchApprovalDTO;
 import com.aurionpro.dtos.DisbursalBatchCreateDTO;
 import com.aurionpro.dtos.DisbursalBatchResponseDTO;
-import com.aurionpro.dtos.DisbursalBatchResponseDTO.DisbursalLineDTO;
-import com.aurionpro.entity.DisbursalBatch;
 import com.aurionpro.service.PayrollBatchService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @Validated
+
 public class PayrollBatchController {
 
     private final PayrollBatchService payrollBatchService;
 
-    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN') and @securityService.isOrgAdmin(#orgId, authentication.name)")
     @PostMapping("/organization/{orgId}/payroll/batches")
     public ResponseEntity<DisbursalBatchResponseDTO> createBatch(
-            @PathVariable Long orgId,
+           @PathVariable Long orgId,
             @Valid @RequestBody DisbursalBatchCreateDTO dto,
             @AuthenticationPrincipal UserDetails currentUser) {
         String createdBy = currentUser != null ? currentUser.getUsername() : "system";
         return ResponseEntity.ok(payrollBatchService.createBatch(orgId, dto, createdBy));
     }
 
+
     @PreAuthorize("hasRole('BANK_ADMIN')")
     @GetMapping("/bank-admin/payroll/batches/pending")
-    public ResponseEntity<List<DisbursalBatchResponseDTO>> listPendingBatches() {
-        return ResponseEntity.ok(payrollBatchService.listPendingBatchesForBankAdmin());
+    public ResponseEntity<Page<DisbursalBatchResponseDTO>> listPendingBatches(Pageable pageable) {
+        return ResponseEntity.ok(payrollBatchService.listPendingBatchesForBankAdmin(pageable));
     }
     
     @PreAuthorize("hasRole('BANK_ADMIN')")
@@ -83,6 +86,9 @@ public class PayrollBatchController {
     
     
 
+
+
+
     @PreAuthorize("hasRole('BANK_ADMIN')")
     @PostMapping("/bank-admin/payroll/batches/review")
     public ResponseEntity<String> reviewBatch(@Valid @RequestBody DisbursalBatchApprovalDTO dto) {
@@ -90,4 +96,3 @@ public class PayrollBatchController {
         return ResponseEntity.ok("Batch review decision applied successfully");
     }
 }
-

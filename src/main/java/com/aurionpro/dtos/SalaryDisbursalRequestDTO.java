@@ -10,12 +10,12 @@ import java.time.LocalDate;
 @Setter
 public class SalaryDisbursalRequestDTO {
 
-    @NotNull
+    @NotNull(message = "Employee ID is required")
     private Long employeeId;
 
-    @DecimalMin("0.0")
-    private Double amount;
-
-    @NotNull
+    @NotNull(message = "Salary month is required")
+    @PastOrPresent(message = "Salary month cannot be in the future")
     private LocalDate salaryMonth;
+    
+    // Amount field removed - always calculated from salary template
 }

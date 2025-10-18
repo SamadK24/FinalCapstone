@@ -1,11 +1,12 @@
 package com.aurionpro.service;
 
-import com.aurionpro.service.PayslipService.PayslipDetailDTO;
-import com.aurionpro.service.PayslipService.PayslipListItemDTO;
-import com.aurionpro.dtos.EmployeePayslipView;
-
 import java.time.LocalDate;
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import com.aurionpro.dtos.EmployeePayslipView;
 
 public interface PayslipService {
 
@@ -18,6 +19,7 @@ public interface PayslipService {
      * List payslips for an employee, optionally filtered by month
      */
     List<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month);
+    Page<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month, Pageable pageable);
 
     /**
      * Fetch detailed payslip information for UI

@@ -1,8 +1,9 @@
 package com.aurionpro.controller;
 
 import java.time.LocalDate;
-import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -38,13 +39,16 @@ public class EmployeePayslipController {
 
 	@PreAuthorize("hasRole('EMPLOYEE')")
 	@GetMapping("/payslips")
-	public ResponseEntity<List<PayslipListItemDTO>> listPayslips(@AuthenticationPrincipal UserDetails principal,
-			@RequestParam(name = "month", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month) {
+	public ResponseEntity<Page<PayslipListItemDTO>> listPayslips(
+	        @AuthenticationPrincipal UserDetails principal,
+	        @RequestParam(name = "month", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month,
+	        Pageable pageable) {
 
-		Long employeeId = principalEmployeeResolver.resolveEmployeeId(principal);
-		List<PayslipListItemDTO> slips = payslipService.listPayslipsForEmployee(employeeId, month);
-		return ResponseEntity.ok(slips);
+	    Long employeeId = principalEmployeeResolver.resolveEmployeeId(principal);
+	    Page<PayslipListItemDTO> slips = payslipService.listPayslipsForEmployee(employeeId, month, pageable);
+	    return ResponseEntity.ok(slips);
 	}
+
 
 	@PreAuthorize("hasRole('EMPLOYEE')")
 	@GetMapping("/payslips/{payslipId}")

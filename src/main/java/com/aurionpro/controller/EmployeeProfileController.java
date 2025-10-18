@@ -125,7 +125,7 @@ public class EmployeeProfileController {
     // ✅ Change password (only own)
     @PreAuthorize("hasRole('EMPLOYEE')")
     @PatchMapping("/organization/{orgId}/employees/{employeeId}/profile/password")
-    public ResponseEntity<Void> changePassword(
+    public ResponseEntity<String> changePassword(
             @PathVariable Long orgId,
             @PathVariable Long employeeId,
             @Valid @RequestBody ChangePasswordRequest req,
@@ -142,6 +142,6 @@ public class EmployeeProfileController {
         employeeProfileService.changePassword(orgId, employeeId, cud.getId(),
                 req.getCurrentPassword(), req.getNewPassword(), req.getConfirmNewPassword());
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok("Password Updated successfully");
     }
 }

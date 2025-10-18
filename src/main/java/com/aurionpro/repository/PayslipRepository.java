@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -14,6 +16,10 @@ import com.aurionpro.entity.Payslip;
 public interface PayslipRepository extends JpaRepository<Payslip, Long>,JpaSpecificationExecutor<Payslip> {
     List<Payslip> findByEmployeeId(Long employeeId);
     List<Payslip> findByEmployeeIdAndSalaryMonth(Long employeeId, LocalDate salaryMonth);
+    Page<Payslip> findByEmployeeId(Long employeeId, Pageable pageable);
+    Page<Payslip> findByEmployeeIdAndSalaryMonth(Long employeeId, LocalDate month, Pageable pageable);
+
+    
     Optional<Payslip> findByLineId(Long lineId);
     boolean existsByIdAndOrganizationIdAndEmployeeId(Long id, Long organizationId, Long employeeId);
     List<Payslip> findByEmployeeIdOrderBySalaryMonthDesc(Long employeeId);

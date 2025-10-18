@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aurionpro.dtos.BankAccountDTO;
 import com.aurionpro.dtos.EmployeeCreationDTO;
 import com.aurionpro.dtos.EmployeeProfileDTO;
+import com.aurionpro.dtos.EmployeeResponseDTO;
 import com.aurionpro.dtos.SalaryTemplateDTO;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Employee.Status;
@@ -26,9 +31,11 @@ import com.aurionpro.exceptions.ResourceNotFoundException;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.OrganizationRepository;
 import com.aurionpro.repository.RoleRepository;
+import com.aurionpro.repository.SalaryTemplateRepository;
 import com.aurionpro.repository.UserRepository;
 import com.aurionpro.service.EmailService;
 import com.aurionpro.service.EmployeeService;
+import com.aurionpro.specs.EmployeeSpecs;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +51,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmailService emailService;
     private final ModelMapper modelMapper;
 
+    @Autowired
+    private SalaryTemplateRepository salaryTemplateRepository;
+
     @Override
     @Transactional
     public void addEmployee(Long orgId, EmployeeCreationDTO dto) {
@@ -54,18 +64,20 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new OrganizationNotApprovedException("Organization is not approved by Bank Admin yet");
         }
 
-        if (userRepository.existsByUsername(dto.getEmployeeCode()))
+        if (userRepository.existsByUsername(dto.getEmployeeCode())) {
             throw new RuntimeException("Employee username (code) already exists");
+        }
 
-        if (userRepository.existsByEmail(dto.getEmail()))
+        if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Employee email already exists");
+        }
 
         LocalDate joiningDate = (dto.getDateOfJoining() == null || dto.getDateOfJoining().isEmpty())
                 ? LocalDate.now()
                 : LocalDate.parse(dto.getDateOfJoining());
 
-        // generate temp password
-        String tempPassword = "defaultPassword123"; // you can generate random secure password here
+        // generate temporary password
+        String tempPassword = "defaultPassword123"; // replace with random secure password logic if needed
 
         User employeeUser = new User();
         employeeUser.setUsername(dto.getEmployeeCode());
@@ -92,7 +104,6 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         employeeRepository.save(employee);
 
-        // send welcome email
         emailService.sendEmployeeWelcomeWithCredentials(
                 employee.getEmail(),
                 employee.getFullName(),
@@ -100,20 +111,16 @@ public class EmployeeServiceImpl implements EmployeeService {
                 tempPassword
         );
     }
-//chnages by durgesh
+
     @Override
     public List<EmployeeProfileDTO> getEmployeesByOrganization(Long orgId) {
         List<Employee> employees = employeeRepository.findByOrganizationId(orgId);
 
         return employees.stream().map(employee -> {
             EmployeeProfileDTO dto = modelMapper.map(employee, EmployeeProfileDTO.class);
-            
+
             // Map salary template
             if (employee.getSalaryTemplate() != null) {
-                dto.setSalaryTemplateId(employee.getSalaryTemplate().getId());
-                dto.setSalaryTemplateName(employee.getSalaryTemplate().getTemplateName());
-                
-                // Map full salary template for frontend calculations
                 SalaryTemplateDTO templateDTO = new SalaryTemplateDTO();
                 templateDTO.setId(employee.getSalaryTemplate().getId());
                 templateDTO.setTemplateName(employee.getSalaryTemplate().getTemplateName());
@@ -122,48 +129,40 @@ public class EmployeeServiceImpl implements EmployeeService {
                 templateDTO.setAllowances(employee.getSalaryTemplate().getAllowances());
                 templateDTO.setDeductions(employee.getSalaryTemplate().getDeductions());
                 dto.setSalaryTemplate(templateDTO);
+
+                dto.setSalaryTemplateId(employee.getSalaryTemplate().getId());
+                dto.setSalaryTemplateName(employee.getSalaryTemplate().getTemplateName());
             }
-            
+
             // Map date of joining
-         // ✅ CORRECT
             if (employee.getDateOfJoining() != null) {
                 dto.setDateOfJoining(employee.getDateOfJoining().format(DateTimeFormatter.ISO_DATE));
             }
 
-            
             // Map employee status
             if (employee.getStatus() != null) {
                 dto.setStatus(employee.getStatus().toString());
             }
-            
-            // ✅ Map bank accounts - SAFE VERSION
+
+            // Map bank accounts safely
             if (employee.getBankAccounts() != null && !employee.getBankAccounts().isEmpty()) {
                 List<BankAccountDTO> bankAccountDTOs = employee.getBankAccounts().stream()
-                    .map(ba -> {
-                        BankAccountDTO baDto = new BankAccountDTO();
-                        baDto.setId(ba.getId());
-                        baDto.setAccountNumber(ba.getAccountNumber());
-                        baDto.setBankName(ba.getBankName());
-                        baDto.setIfscCode(ba.getIfscCode());
-                        
-                        if (ba.getKycStatus() != null) {
-                            baDto.setKycStatus(ba.getKycStatus().toString());
-                        }
-                        
-                        if (ba.getBalance() != null) {
+                        .map(ba -> {
+                            BankAccountDTO baDto = new BankAccountDTO();
+                            baDto.setId(ba.getId());
+                            baDto.setAccountNumber(ba.getAccountNumber());
+                            baDto.setBankName(ba.getBankName());
+                            baDto.setIfscCode(ba.getIfscCode());
+                            baDto.setKycStatus(ba.getKycStatus() != null ? ba.getKycStatus().toString() : null);
                             baDto.setBalance(ba.getBalance());
-                        }
-                        
-                        return baDto;
-                    })
-                    .collect(Collectors.toList());
+                            return baDto;
+                        }).collect(Collectors.toList());
                 dto.setBankAccounts(bankAccountDTOs);
             }
-            
+
             return dto;
         }).collect(Collectors.toList());
     }
-
 
     @Override
     public Employee getEmployeeById(Long employeeId) {
@@ -178,5 +177,12 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ResourceNotFoundException("Employee not found in organization");
         }
     }
-}
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EmployeeResponseDTO> listEmployeesForOrganization(Long orgId, Employee.Status status, String search, Pageable pageable) {
+        Specification<Employee> spec = EmployeeSpecs.forOrgWithFilters(orgId, status, search);
+        Page<Employee> employees = employeeRepository.findAll(spec, pageable);
+        return employees.map(e -> modelMapper.map(e, EmployeeResponseDTO.class));
+    }
+}

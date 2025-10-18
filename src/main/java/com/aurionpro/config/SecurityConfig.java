@@ -53,32 +53,35 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
-                // Allow preflight requests through without auth
+                // Allow preflight requests
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Public auth endpoints
+                // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/validate-reset-token").permitAll()
-                
+
+                // Payroll management (Bank Admin only)
                 .requestMatchers("/api/bank-admin/payroll/batches/**").hasRole("BANK_ADMIN")
                 .requestMatchers("/api/bank-admin/payroll/disbursements/**").hasRole("BANK_ADMIN")
-                
+
                 // Organization APIs
                 .requestMatchers("/api/organization/**")
                     .hasAnyRole("ORGANIZATION_ADMIN", "BANK_ADMIN", "EMPLOYEE")
-                    
-                    .requestMatchers("/api/bank-accounts/employee/**").hasRole("EMPLOYEE")
 
-                // Bank admin area
+                // Employee account APIs
+                .requestMatchers("/api/bank-accounts/employee/**").hasRole("EMPLOYEE")
+
+                // Bank Admin area
                 .requestMatchers("/api/bank-admin/**").hasRole("BANK_ADMIN")
                 .requestMatchers("/api/bank-admin/salary-disbursal-requests/**").hasRole("BANK_ADMIN")
 
-                // Bank accounts access
+                // Shared Bank Accounts APIs
                 .requestMatchers("/api/bank-accounts/**")
                     .hasAnyRole("ORGANIZATION_ADMIN", "EMPLOYEE", "BANK_ADMIN")
 
+                // Everything else requires auth
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -90,11 +93,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cors = new CorsConfiguration();
-        // With credentials you must specify the exact origin (no wildcard)
-        cors.setAllowedOrigins(List.of("http://localhost:4200")); // FE dev origin [web:152]
-        // Include OPTIONS and PATCH to satisfy preflights for secured endpoints [web:153]
+        cors.setAllowedOrigins(List.of("http://localhost:4200"));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        // Explicit headers so Authorization is accepted in preflight [web:143]
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         cors.setExposedHeaders(List.of("Authorization"));
         cors.setAllowCredentials(true);

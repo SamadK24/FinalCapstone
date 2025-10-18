@@ -25,8 +25,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     boolean existsByEmployeeCodeAndOrganization_IdAndStatus(String employeeCode, Long orgId, Employee.Status status);
 
-    // Added from main branch
     List<Employee> findByOrganizationId(Long orgId);
+
     Optional<Employee> findByUserAccount(User user);
-   
 }

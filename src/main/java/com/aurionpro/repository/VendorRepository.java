@@ -10,5 +10,7 @@ import com.aurionpro.entity.Vendor;
 public interface VendorRepository extends JpaRepository<Vendor, Long> {
     List<Vendor> findByOrganizationId(Long orgId);
     Optional<Vendor> findByIdAndOrganizationId(Long id, Long orgId);
+    boolean existsByOrganizationIdAndName(Long orgId, String name);
+
 }
 

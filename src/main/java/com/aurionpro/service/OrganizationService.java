@@ -2,6 +2,8 @@ package com.aurionpro.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dtos.DocumentUploadDTO;
@@ -23,7 +25,7 @@ public interface OrganizationService {
     void registerOrganization(OrganizationRegistrationDTO dto);
 
     List<Organization> getOrganizationsByStatus(Organization.Status status);
-
+    Page<Organization> getOrganizationsByStatus(Organization.Status status, Pageable pageable);
     void approveOrRejectOrganization(OrganizationApprovalDTO approvalDTO);
 
     Document uploadOrganizationDocument(Long orgId, String documentName, MultipartFile file) throws IOException, java.io.IOException;
@@ -31,4 +33,7 @@ public interface OrganizationService {
     Document uploadOrganizationDocument(Long orgId, DocumentUploadDTO dto);
 
     List<Document> getOrganizationDocuments(Long orgId);
+    
+   
+
 }

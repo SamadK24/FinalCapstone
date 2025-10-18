@@ -4,11 +4,15 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dtos.AttachmentResponse;
+import com.aurionpro.dtos.DocumentResponseDTO;
 import com.aurionpro.entity.BankAccount;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Employee;
@@ -35,6 +39,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final EmployeeRepository employeeRepository;
     private final BankAccountRepository bankAccountRepository;
     private final EmailService emailService;
+    private final ModelMapper modelMapper;
 
     @org.springframework.beans.factory.annotation.Value("${notifications.bank.admin.to:}")
     private String bankAdminInbox;
@@ -225,5 +230,20 @@ public class DocumentServiceImpl implements DocumentService {
                 ? latestAccount.getKycStatus().name()
                 : null;
     }
+    
+    @Override
+    public Page<DocumentResponseDTO> getPendingDocuments(Pageable pageable) {
+        Page<Document> docs = documentRepository.findByVerificationStatus(
+            Document.VerificationStatus.PENDING, pageable);
+        return docs.map(doc -> modelMapper.map(doc, DocumentResponseDTO.class));
+    }
+
+    @Override
+    public Page<DocumentResponseDTO> getPendingDocumentsByOrganization(Long orgId, Pageable pageable) {
+        Page<Document> docs = documentRepository.findByOrganizationIdAndVerificationStatus(
+            orgId, Document.VerificationStatus.PENDING, pageable);
+        return docs.map(doc -> modelMapper.map(doc, DocumentResponseDTO.class));
+    }
+
 }
 
