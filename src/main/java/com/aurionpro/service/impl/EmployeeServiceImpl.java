@@ -6,12 +6,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aurionpro.dtos.EmployeeCreationDTO;
 import com.aurionpro.dtos.EmployeeProfileDTO;
+import com.aurionpro.dtos.EmployeeResponseDTO;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Employee.Status;
 import com.aurionpro.entity.Organization;
@@ -23,9 +28,11 @@ import com.aurionpro.exceptions.ResourceNotFoundException;
 import com.aurionpro.repository.EmployeeRepository;
 import com.aurionpro.repository.OrganizationRepository;
 import com.aurionpro.repository.RoleRepository;
+import com.aurionpro.repository.SalaryTemplateRepository;
 import com.aurionpro.repository.UserRepository;
-import com.aurionpro.service.EmployeeService;
 import com.aurionpro.service.EmailService;
+import com.aurionpro.service.EmployeeService;
+import com.aurionpro.specs.EmployeeSpecs;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,6 +47,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final ModelMapper modelMapper;
+    @Autowired
+    private SalaryTemplateRepository salaryTemplateRepository;
+    
 
     @Override
     @Transactional
@@ -128,5 +138,14 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ResourceNotFoundException("Employee not found in organization");
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EmployeeResponseDTO> listEmployeesForOrganization(Long orgId, Employee.Status status, String search, Pageable pageable) {
+        Specification<Employee> spec = EmployeeSpecs.forOrgWithFilters(orgId, status, search);
+        Page<Employee> employees = employeeRepository.findAll(spec, pageable);
+        return employees.map(e -> modelMapper.map(e, EmployeeResponseDTO.class));
+    }
+
 }
 

@@ -6,6 +6,9 @@ import com.aurionpro.dtos.SalaryDisbursalResponseDTO;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface SalaryDisbursalService {
 
     /**
@@ -16,7 +19,7 @@ public interface SalaryDisbursalService {
     /**
      * List all pending salary disbursal requests for bank admins.
      */
-    List<SalaryDisbursalResponseDTO> getPendingRequestsForBankAdmin();
+    Page<SalaryDisbursalResponseDTO> getPendingRequestsForBankAdmin(Pageable pageable);
 
     /**
      * Approve or reject a pending salary disbursal request.

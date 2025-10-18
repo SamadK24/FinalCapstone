@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import com.aurionpro.dtos.OrganizationApprovalDTO;
 import com.aurionpro.dtos.OrganizationRegistrationDTO;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Organization;
+import com.aurionpro.entity.Organization.Status;
 import com.aurionpro.entity.Role;
 import com.aurionpro.entity.Role.RoleName;
 import com.aurionpro.entity.User;
@@ -111,6 +114,12 @@ public class OrganizationServiceImpl implements OrganizationService {
     }
 
     @Override
+    public Page<Organization> getOrganizationsByStatus(Organization.Status status, Pageable pageable) {
+        return organizationRepository.findByStatus(status, pageable);
+    }
+
+
+    @Override
     @Transactional
     public void approveOrRejectOrganization(OrganizationApprovalDTO approvalDTO) {
         Organization organization = getOrganizationById(approvalDTO.getOrganizationId());
@@ -175,5 +184,9 @@ public class OrganizationServiceImpl implements OrganizationService {
         }
         return "unknown";
     }
+
+
+
+	
 }
 

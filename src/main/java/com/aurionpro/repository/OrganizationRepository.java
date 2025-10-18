@@ -3,6 +3,9 @@ package com.aurionpro.repository;
 import com.aurionpro.entity.Organization;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Repository;
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
     Optional<Organization> findByName(String name);
     List<Organization> findByStatus(Organization.Status status);
+    Page<Organization> findByStatus(Organization.Status status, Pageable pageable);
     Optional<Organization> findByAdminUserId(Long adminUserId);
     boolean existsByIdAndAdminUserUsername(Long orgId, String username);
 

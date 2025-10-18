@@ -32,12 +32,14 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Validated
+
 public class AuthController {
 
     private final OrganizationService organizationService;
-    private final UserService userService; // For login
+    private final UserService userService;
     private final ModelMapper modelMapper;
     private final CaptchaService captchaService;
+
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponseDTO> registerOrganization(@Valid @RequestBody OrganizationRegistrationDTO registrationDTO) {
@@ -45,16 +47,10 @@ public class AuthController {
         return ResponseEntity.ok(new ApiResponseDTO(true, "Organization registered successfully"));
     }
 
+
     @PostMapping("/login")
     public ResponseEntity<JwtResponseDTO> loginUser(@Valid @RequestBody UserLoginDTO loginDTO) {
         String jwt = userService.authenticateUser(loginDTO);
-
-//        boolean captchaValid = captchaService.verifyCaptcha(loginDTO.getCaptchaToken());
-//        if (!captchaValid) {
-//            throw new RuntimeException("Captcha verification failed");
-//        }
-//        
-        
         User user = userService.findByUsernameOrEmail(loginDTO.getUsernameOrEmail());
 
         JwtResponseDTO response = JwtResponseDTO.builder()
@@ -72,6 +68,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+ 
     @GetMapping("/user")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userService.findByUsernameOrEmail(userDetails.getUsername());
@@ -87,9 +84,8 @@ public class AuthController {
         if (org != null) {
             out.put("organizationId", org.getId());
             out.put("organizationName", org.getName());
-            out.put("organizationStatus", org.getStatus().name());  // Add status here as string
+            out.put("organizationStatus", org.getStatus().name());
         }
         return ResponseEntity.ok(out);
     }
-
 }

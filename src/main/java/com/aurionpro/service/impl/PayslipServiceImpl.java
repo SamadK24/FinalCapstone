@@ -1,5 +1,18 @@
 package com.aurionpro.service.impl;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.aurionpro.dtos.EmployeePayslipView;
 import com.aurionpro.entity.BankAccount;
 import com.aurionpro.entity.Employee;
@@ -12,16 +25,6 @@ import com.aurionpro.repository.PayslipRepository;
 import com.aurionpro.service.PayslipService;
 
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -113,14 +116,31 @@ public class PayslipServiceImpl implements PayslipService {
                 .build();
     }
 
+ // Existing (non-paginated)
     @Override
-    @Transactional(readOnly = true)
     public List<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month) {
-        List<Payslip> slips = (month == null) ? payslipRepository.findByEmployeeId(employeeId)
-                : payslipRepository.findByEmployeeIdAndSalaryMonth(employeeId, month);
-
+        List<Payslip> slips;
+        if (month != null) {
+            slips = payslipRepository.findByEmployeeIdAndSalaryMonth(employeeId, month);
+        } else {
+            slips = payslipRepository.findByEmployeeId(employeeId);
+        }
         return slips.stream().map(this::toListItem).collect(Collectors.toList());
     }
+
+    // ✅ ADD THIS (paginated)
+    @Override
+    public Page<PayslipListItemDTO> listPayslipsForEmployee(Long employeeId, LocalDate month, Pageable pageable) {
+        Page<Payslip> slips;
+        if (month != null) {
+            slips = payslipRepository.findByEmployeeIdAndSalaryMonth(employeeId, month, pageable);
+        } else {
+            slips = payslipRepository.findByEmployeeId(employeeId, pageable);
+        }
+        return slips.map(this::toListItem);
+    }
+
+
 
     @Override
     @Transactional(readOnly = true)

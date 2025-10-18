@@ -2,10 +2,12 @@ package com.aurionpro.service;
 
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.aurionpro.dtos.EmployeeCreationDTO;
 import com.aurionpro.dtos.EmployeeProfileDTO;
+import com.aurionpro.dtos.EmployeeResponseDTO;
 import com.aurionpro.entity.Employee;
 
 public interface EmployeeService {
@@ -33,4 +35,7 @@ public interface EmployeeService {
 
     // Optional: resolve employeeId by code
     // Long resolveEmployeeId(Long orgId, String employeeCode);
+    
+    Page<EmployeeResponseDTO> listEmployeesForOrganization(Long orgId, Employee.Status status, String search, Pageable pageable);
+
 }

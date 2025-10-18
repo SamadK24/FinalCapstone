@@ -1,17 +1,18 @@
 package com.aurionpro.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.aurionpro.dtos.PaymentBatchApprovalDTO;
 import com.aurionpro.dtos.PaymentBatchCreateDTO;
 import com.aurionpro.dtos.PaymentBatchResponseDTO;
-import com.aurionpro.service.VendorPaymentService.ExecutionSummary;
-
-import java.util.List;
 
 public interface VendorPaymentService {
 
     PaymentBatchResponseDTO createVendorPaymentBatch(Long orgId, PaymentBatchCreateDTO dto, String createdBy);
 
-    List<PaymentBatchResponseDTO> listPendingForBankAdmin();
+    Page<PaymentBatchResponseDTO> listPendingForBankAdmin(Pageable pageable);
+
 
     void reviewVendorBatch(PaymentBatchApprovalDTO dto);
 

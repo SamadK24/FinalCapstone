@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,29 +56,56 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
     @Override
     @Transactional
     public DisbursalBatchResponseDTO createBatch(Long orgId, DisbursalBatchCreateDTO dto, String createdBy) {
+        // 1. Validate organization exists and is approved
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + orgId));
+        
         if (org.getStatus() != Organization.Status.APPROVED) {
-            throw new IllegalStateException("Organization is not approved");
+            throw new IllegalStateException("Organization must be approved to create payroll batches");
         }
+        
+        // 2. Validate salary month is provided
         if (dto.getSalaryMonth() == null) {
-            throw new IllegalArgumentException("salaryMonth is required");
+            throw new IllegalArgumentException("Salary month is required");
         }
-
+        
+        // 3. Check for duplicate batch for same org and month
+        if (batchRepository.existsByOrganizationIdAndSalaryMonth(orgId, dto.getSalaryMonth())) {
+            throw new IllegalArgumentException("Salary batch already exists for this organization and month: " 
+                + dto.getSalaryMonth());
+        }
+        
+        // 4. Validate organization has verified payroll account
+        bankAccountRepository.findFirstVerifiedOrgAccount(orgId)
+                .orElseThrow(() -> new IllegalStateException(
+                    "Organization does not have a verified payroll bank account"));
+        
+        // 5. Get employee list (specific IDs or all org employees)
         List<Employee> employees = (dto.getEmployeeIds() != null && !dto.getEmployeeIds().isEmpty())
                 ? employeeRepository.findAllById(dto.getEmployeeIds()).stream()
                         .filter(e -> e.getOrganization().getId().equals(orgId))
                         .collect(Collectors.toList())
                 : org.getEmployees() == null
                         ? List.of()
-                        : org.getEmployees().stream().filter(e -> e.getSalaryTemplate() != null)
+                        : org.getEmployees().stream()
                                 .collect(Collectors.toList());
 
-        if (employees.isEmpty()) throw new IllegalArgumentException("No eligible employees for batch");
+        // 6. Filter only eligible employees (ACTIVE + has salary template + verified bank account)
+        List<Employee> eligibleEmployees = employees.stream()
+                .filter(e -> e.getStatus() == Employee.Status.ACTIVE)
+                .filter(e -> e.getSalaryTemplate() != null)
+                .filter(e -> hasVerifiedBankAccount(e.getId()))
+                .collect(Collectors.toList());
 
+        if (eligibleEmployees.isEmpty()) {
+            throw new IllegalArgumentException("No eligible employees found. Employees must be ACTIVE, have salary template, and verified bank account.");
+        }
+
+        // 7. Create disbursal lines
         HashSet<DisbursalLine> lines = new HashSet<>();
         BigDecimal total = BigDecimal.ZERO;
-        for (Employee e : employees) {
+        
+        for (Employee e : eligibleEmployees) {
             BigDecimal amt = computeNet(e);
             DisbursalLine line = DisbursalLine.builder()
                     .employee(e)
@@ -87,6 +116,7 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
             total = total.add(amt);
         }
 
+        // 8. Create batch
         DisbursalBatch batch = DisbursalBatch.builder()
                 .organization(org)
                 .salaryMonth(dto.getSalaryMonth())
@@ -100,6 +130,7 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
 
         DisbursalBatch saved = batchRepository.save(batch);
 
+        // 9. Send notifications
         if (bankAdminInbox != null && !bankAdminInbox.isBlank()) {
             emailService.sendBatchPendingReview(
                     bankAdminInbox,
@@ -121,31 +152,54 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
         return toResponse(saved);
     }
 
+    private boolean hasVerifiedBankAccount(Long employeeId) {
+        return bankAccountRepository.findByEmployeeId(employeeId).stream()
+            .anyMatch(acc -> acc.isVerified() 
+                && acc.getKycStatus() == BankAccount.KYCDocumentVerificationStatus.VERIFIED);
+    }
+
+
     // ------------------ LIST PENDING ------------------
     @Override
     @Transactional(readOnly = true)
-    public List<DisbursalBatchResponseDTO> listPendingBatchesForBankAdmin() {
-        return batchRepository.findByStatus(DisbursalBatch.Status.PENDING).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public Page<DisbursalBatchResponseDTO> listPendingBatchesForBankAdmin(Pageable pageable) {
+        Page<DisbursalBatch> batches = batchRepository.findByStatus(DisbursalBatch.Status.PENDING, pageable);
+        return batches.map(this::toResponse);
     }
+
+
+
 
     // ------------------ REVIEW BATCH ------------------
     @Override
     @Transactional
     public void reviewBatch(DisbursalBatchApprovalDTO dto) {
+        // 1. Validate batch exists
         DisbursalBatch batch = batchRepository.findById(dto.getBatchId())
-                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + dto.getBatchId()));
 
+        // 2. Validate batch is in PENDING status
         if (batch.getStatus() != DisbursalBatch.Status.PENDING) {
-            throw new IllegalStateException("Only PENDING batches can be reviewed");
+            throw new IllegalStateException("Only PENDING batches can be reviewed. Current status: " 
+                + batch.getStatus());
+        }
+
+        // 3. Validate approval decision is provided
+        if (dto.getApprove() == null) {
+            throw new IllegalArgumentException("Approval decision must be provided");
         }
 
         Organization org = batch.getOrganization();
 
+        // 4. Handle rejection
         if (!Boolean.TRUE.equals(dto.getApprove())) {
+            // Rejection reason is mandatory
+            if (dto.getRejectionReason() == null || dto.getRejectionReason().trim().isEmpty()) {
+                throw new IllegalArgumentException("Rejection reason is required when rejecting batch");
+            }
+            
             batch.setStatus(DisbursalBatch.Status.REJECTED);
-            batch.setRejectionReason(dto.getRejectionReason());
+            batch.setRejectionReason(dto.getRejectionReason().trim());
             batch.setApprovedBy(dto.getReviewer());
             batch.setApprovedAt(Instant.now());
             batchRepository.save(batch);
@@ -161,19 +215,22 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
             return;
         }
 
-        // Approval path: debit org account and mark approved
+        // 5. Handle approval - check org has verified payroll account
         BankAccount orgAccount = bankAccountRepository.findFirstVerifiedOrgAccount(org.getId())
                 .orElseThrow(() -> new IllegalStateException("Organization has no verified payroll account"));
 
+        // 6. Lock account for update
         BankAccount locked = bankAccountRepository.findByIdForUpdate(orgAccount.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payroll account not found"));
 
+        // 7. Check sufficient balance
         BigDecimal available = locked.getBalance();
         BigDecimal required = batch.getTotalAmount();
 
         if (available.compareTo(required) < 0) {
             batch.setStatus(DisbursalBatch.Status.REJECTED);
-            String reason = "Insufficient balance: required " + required + ", available " + available;
+            String reason = "Insufficient balance in organization account. Required: ₹" + required 
+                + ", Available: ₹" + available;
             batch.setRejectionReason(reason);
             batch.setApprovedBy(dto.getReviewer());
             batch.setApprovedAt(Instant.now());
@@ -190,15 +247,18 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
             return;
         }
 
+        // 8. Deduct total amount from org account
         locked.setBalance(available.subtract(required));
         bankAccountRepository.save(locked);
 
+        // 9. Mark batch as approved
         batch.setStatus(DisbursalBatch.Status.APPROVED);
         batch.setRejectionReason(null);
         batch.setApprovedBy(dto.getReviewer());
         batch.setApprovedAt(Instant.now());
         batchRepository.save(batch);
 
+        // 10. Notify org admin
         if (org.getAdminUser() != null && org.getAdminUser().getEmail() != null) {
             emailService.sendBatchApproved(
                     org.getAdminUser().getEmail(),
@@ -208,6 +268,7 @@ public class PayrollBatchServiceImpl implements PayrollBatchService {
                     batch.getId());
         }
     }
+
 
     // ------------------ EXECUTE APPROVED BATCH ------------------
     @Override

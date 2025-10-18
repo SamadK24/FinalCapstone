@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,13 +38,16 @@ public class BankAdminController {
     private final DocumentService documentService;
     
     @GetMapping("/organizations/pending")
-    public ResponseEntity<List<OrganizationResponseDTO>> listPendingOrganizations() {
-        List<Organization> pendingOrgs = organizationService.getOrganizationsByStatus(Organization.Status.PENDING);
-        List<OrganizationResponseDTO> dtos = pendingOrgs.stream()
-            .map(org -> modelMapper.map(org, OrganizationResponseDTO.class))
-            .collect(Collectors.toList());
+    public ResponseEntity<Page<OrganizationResponseDTO>> listPendingOrganizations(Pageable pageable) {
+        Page<Organization> pendingOrgs = organizationService.getOrganizationsByStatus(
+            Organization.Status.PENDING, pageable);
+        
+        Page<OrganizationResponseDTO> dtos = pendingOrgs.map(org -> 
+            modelMapper.map(org, OrganizationResponseDTO.class));
+        
         return ResponseEntity.ok(dtos);
     }
+
 
 
     @PostMapping("/organizations/approval")
@@ -52,13 +57,13 @@ public class BankAdminController {
     }
     
     @GetMapping("/organizations/{orgId}/documents/pending")
-    public ResponseEntity<List<DocumentResponseDTO>> getPendingDocuments(@PathVariable Long orgId) {
-        List<Document> docs = documentService.getDocumentsPendingByOrganization(orgId);
-        List<DocumentResponseDTO> dtos = docs.stream()
-                .map(doc -> modelMapper.map(doc, DocumentResponseDTO.class))
-                .collect(Collectors.toList());
+    public ResponseEntity<Page<DocumentResponseDTO>> getPendingDocuments(
+            @PathVariable Long orgId,
+            Pageable pageable) {
+        Page<DocumentResponseDTO> dtos = documentService.getPendingDocumentsByOrganization(orgId, pageable);
         return ResponseEntity.ok(dtos);
     }
+
 
     @PostMapping("/documents/{docId}/verify")
     public ResponseEntity<String> verifyDocument(

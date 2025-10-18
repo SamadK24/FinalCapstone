@@ -2,9 +2,12 @@ package com.aurionpro.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dtos.AttachmentResponse;
+import com.aurionpro.dtos.DocumentResponseDTO;
 import com.aurionpro.entity.Document;
 import com.aurionpro.entity.Employee;
 import com.aurionpro.entity.Organization;
@@ -30,4 +33,8 @@ public interface DocumentService {
     String getStatusByEmployee(Employee employee);
 
     AttachmentResponse storeEmployeeConcernAttachment(Long orgId, Long employeeId, MultipartFile file);
+    
+    Page<DocumentResponseDTO> getPendingDocuments(Pageable pageable);
+    Page<DocumentResponseDTO> getPendingDocumentsByOrganization(Long orgId, Pageable pageable);
+
 }

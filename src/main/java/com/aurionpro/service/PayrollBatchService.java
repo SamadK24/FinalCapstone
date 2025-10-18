@@ -1,8 +1,7 @@
 package com.aurionpro.service;
 
-import java.util.List;
-
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.aurionpro.dtos.DisbursalBatchApprovalDTO;
 import com.aurionpro.dtos.DisbursalBatchCreateDTO;
@@ -12,7 +11,8 @@ public interface PayrollBatchService {
 
     DisbursalBatchResponseDTO createBatch(Long orgId, DisbursalBatchCreateDTO dto, String createdBy);
 
-    List<DisbursalBatchResponseDTO> listPendingBatchesForBankAdmin();
+    Page<DisbursalBatchResponseDTO> listPendingBatchesForBankAdmin(Pageable pageable);
+
 
     void reviewBatch(DisbursalBatchApprovalDTO dto);
 

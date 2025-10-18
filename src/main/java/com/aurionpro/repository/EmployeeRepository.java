@@ -5,9 +5,15 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.aurionpro.entity.Employee;
+import com.aurionpro.entity.SalaryTemplate;
+
+import jakarta.transaction.Transactional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
@@ -26,4 +32,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     // Added from main branch
     List<Employee> findByOrganizationId(Long orgId);
+    
+    
 }
